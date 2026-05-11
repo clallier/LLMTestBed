@@ -1,0 +1,96 @@
+/* --- Theme-Aware Structural Styles --- */
+
+/* Main App Spacing */
+.stApp {
+    /* No hardcoded background/color here to allow st-theme to work */
+}
+
+/* Force Top Bar (Header) to be transparent so it blends with any theme */
+header[data-testid="stHeader"] {
+    background: transparent !important;
+}
+
+/* Chat Message Styling - Using Theme Variables */
+[data-testid="stChatMessage"] {
+    background-color: var(--secondary-background-color) !important;
+    border: 1px solid rgba(128, 128, 128, 0.2) !important;
+    border-radius: 12px;
+    padding: 1.25rem;
+    margin-bottom: 1.25rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* 🧠 THINKING ANIMATION HACK 
+   Targets the native Streamlit avatar when a .is-thinking marker is present
+*/
+@keyframes pulse {
+    0% { transform: scale(1); opacity: 1; filter: drop-shadow(0 0 0px #6366f1); }
+    50% { transform: scale(1.1); opacity: 0.8; filter: drop-shadow(0 0 8px #6366f1); }
+    100% { transform: scale(1); opacity: 1; filter: drop-shadow(0 0 0px #6366f1); }
+}
+
+/* Target the avatar sibling of the thinking marker */
+[data-testid="stChatMessage"]:has(.is-thinking) [data-testid="stChatMessageAvatar"] {
+    animation: pulse 1.5s infinite ease-in-out !important;
+    border: 2px solid #6366f1 !important;
+    border-radius: 50% !important;
+}
+
+/* Internal Reasoning / Thinking Block - Adaptive Indigo */
+.thinking-block {
+    background-color: rgba(99, 102, 241, 0.1);
+    border-left: 4px solid #6366f1;
+    padding: 1.25rem;
+    margin-bottom: 1.25rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    line-height: 1.6;
+    color: var(--text-color);
+    border-radius: 4px;
+}
+
+/* Log Panel Expanders - Subtle enhancements */
+[data-testid="stExpander"] {
+    border: 1px solid rgba(128, 128, 128, 0.1) !important;
+    border-radius: 8px;
+    margin-bottom: 0.5rem;
+}
+
+[data-testid="stExpander"] summary {
+    font-weight: 600;
+}
+
+/* Sidebar Styling - Subtle border */
+[data-testid="stSidebar"] {
+    border-right: 1px solid rgba(128, 128, 128, 0.1);
+}
+
+/* JSON display - Ensure it uses theme background */
+div[data-testid="stJson"] {
+    background-color: rgba(0, 0, 0, 0.05);
+    padding: 0.75rem;
+    border-radius: 4px;
+}
+
+/* Scrollbar customization - Using theme colors */
+::-webkit-scrollbar {
+    width: 8px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: rgba(128, 128, 128, 0.3);
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(128, 128, 128, 0.5);
+}
+
+/* Custom Input Bar Styling for non-floating input */
+.stTextInput input {
+    background-color: var(--secondary-background-color) !important;
+    border: 1px solid rgba(128, 128, 128, 0.2) !important;
+    border-radius: 8px !important;
+    padding: 0.75rem !important;
+}
