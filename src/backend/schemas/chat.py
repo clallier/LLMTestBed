@@ -2,10 +2,23 @@ from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 
 class ChatMessage(BaseModel):
+    """
+    Represents a single message in a chat conversation.
+
+    High level role: Validates individual message objects to ensure they 
+    have the required role and content fields.
+    """
     role: str
     content: str
 
 class ChatRequest(BaseModel):
+    """
+    Represents an incoming chat completion request from the frontend.
+
+    High level role: Validates the payload sent to the /chat endpoint, 
+    ensuring it contains a model and a list of messages. It also provides 
+    optional fields for advanced Ollama features like tools and system prompts.
+    """
     model: str
     messages: List[ChatMessage]
     system: Optional[str] = None

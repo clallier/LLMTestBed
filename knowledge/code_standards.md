@@ -3,6 +3,7 @@
 ## 🏗️ Architecture & Modularity
 - **Design Patterns**: Prefer **Modularity**, **Dependency Injection**, **IoC (Inversion of Control)**, and **Factory patterns**. This ensures the code is simple to test, understand, maintain, and evolve.
 - **Classes over Functions**: Prefer classes over just a bunch of functions when possible to encapsulate state and behavior.
+- **Functions and methods**: They should be less than 20 lines long and do only one thing. Try to use pure functions and avoid side effects as much as possible. Make sure they are deterministic and predictable. If a function is more than 20 lines long, it should be refactored into smaller functions.
 - **UI Components**: All UI logic must reside in `src/streamlit_app/components/`.
 - **API Communication**: All backend calls must use a dedicated client (e.g., `src/streamlit_app/api/client.py`).
 - **Presets**: Prompts and attack templates must be stored in `src/streamlit_app/presets/`.
@@ -25,7 +26,7 @@
 ## 🕵️‍♂️ Observability & Quality
 - **Automated Testing**: Create tests for EACH new modification.
 - **Streaming Integrity**: Ensure that streaming functionality is ALWAYS working and verified after UI changes.
-- **Documentation**: Every function and class must have a clear, up-to-date **Docstring**.
+- **Documentation**: Every function and class must have a clear, up-to-date **Docstring** using **Google Style**: 1. high level role, description, how it works and specificities. 2. Arguments, types, order, default values. 3. Return types, what is returned and specificities. 4. Potential errors. 5. Examples on how to use it.
 
 ## 🛡️ Security by Design
 - **Secure Coding**: Prioritize "Security by Design" to avoid introducing vulnerabilities.

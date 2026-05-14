@@ -1,15 +1,19 @@
+"""
+Main API Application Entry Point.
+
+High level role: Initializes the FastAPI application, mounts middlewares 
+(like CORS), attaches all routers, serves static files, and configures a 
+global exception handler.
+"""
 import sys
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 
-# Add current directory to path for modular imports
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
-from api.router import api_router
-from core.config import STATIC_DIR
+from backend.api.router import api_router
+from backend.core.config import STATIC_DIR
 import logging
 import traceback
 
@@ -20,14 +24,16 @@ app = FastAPI(title="LLMTestbed API")
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request, exc):
+    """
+    Catches any unhandled exceptions across the application.
+    Logs the stack trace and returns a structured 500 JSON response.
+    """
     logger.error(f"GLOBAL ERROR: {exc}")
     logger.error(traceback.format_exc())
     return JSONResponse(
         status_code=500,
         content={"message": str(exc), "traceback": traceback.format_exc()},
     )
-
-from fastapi.responses import JSONResponse
 
 app.add_middleware(
     CORSMiddleware,
@@ -44,6 +50,7 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 @app.get("/")
 async def read_index():
+    """Serves the main frontend index.html file."""
     return FileResponse(os.path.join(STATIC_DIR, "index.html"))
 
 if __name__ == "__main__":
