@@ -87,6 +87,8 @@ def render_formatted_detail(log: Dict[str, Any]):
         _render_response_details(data)
     elif log_type == "TOOL":
         _render_tool_details(data)
+    elif log_type == "SECURITY":
+        _render_security_details(data)
     elif log_type == "ERROR":
         _render_error_details(data)
     else:
@@ -148,3 +150,20 @@ def _render_error_details(data: Dict[str, Any]):
     st.write(data.get('message', 'Unknown error occurred'))
     if 'traceback' in data:
         st.code(data['traceback'], language="python")
+
+def _render_security_details(data: Dict[str, Any]):
+    """Renders formatted security analysis details."""
+    st.markdown("#### 🛡️ Security Analysis")
+    score = data.get("risk_score", 0.0)
+    target = data.get("target", "unknown")
+    summary = data.get("summary", "No details")
+    
+    color = "red" if score > 0.8 else "orange" if score > 0.4 else "green"
+    
+    st.metric("Risk Score", f"{score*100:.1f}%", delta=summary, delta_color="inverse")
+    st.markdown(f"**Target:** `{target}`")
+    
+    if score > 0.5:
+        st.warning("⚠️ High risk of prompt injection detected in this segment.")
+    else:
+        st.success("✅ Content passed the Bayesian security filter.")

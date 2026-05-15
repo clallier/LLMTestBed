@@ -22,7 +22,10 @@ dependencies = [
     "pytest",
     "pytest-asyncio",
     "respx",
-    "watchdog"
+    "watchdog",
+    "scikit-learn",
+    "rapidfuzz",
+    "joblib"
 ]
 
 [tool.pytest.ini_options]

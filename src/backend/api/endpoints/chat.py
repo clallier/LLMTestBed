@@ -6,9 +6,14 @@ from backend.core.tool_registry import TOOL_MAP
 from backend.core.payload_builder import build_ollama_payload
 import json
 import logging
+import os
 from typing import Any, Dict, List, AsyncGenerator
+from backend.security.preprocessor import SecurityPreprocessor
 
 logger = logging.getLogger(__name__)
+
+# Initialize the security engine
+security_engine = SecurityPreprocessor()
 
 router = APIRouter()
 
@@ -76,7 +81,19 @@ async def handle_model_stream(request: ChatRequest, messages: List[Dict[str, Any
         assistant_msg["tool_calls"] = tool_calls
         messages.append(assistant_msg)
         for tc in tool_calls:
-            messages.append(run_tool(tc))
+            tool_res = run_tool(tc)
+            messages.append(tool_res)
+            
+            # Security Analysis of Tool Response
+            risk_score = security_engine.calculate_risk(tool_res["content"])
+            yield json.dumps({
+                "security": {
+                    "risk_score": risk_score,
+                    "target": f"tool_{tc['function']['name']}",
+                    "summary": "High risk tool output" if risk_score > 0.8 else "Safe"
+                }
+            }) + "\n"
+            
         # Recursive call to handle the next step
         async for next_chunk in handle_model_stream(request, messages):
             yield next_chunk
@@ -97,8 +114,23 @@ async def chat(request: ChatRequest):
         if request.system:
             messages.insert(0, {"role": "system", "content": request.system})
             
+        async def security_wrapped_stream():
+            # Initial Security Analysis of the Prompt
+            last_prompt = messages[-1]["content"] if messages else ""
+            risk_score = security_engine.calculate_risk(last_prompt)
+            yield json.dumps({
+                "security": {
+                    "risk_score": risk_score,
+                    "target": "user_prompt",
+                    "summary": "High risk prompt" if risk_score > 0.8 else "Safe"
+                }
+            }) + "\n"
+            
+            async for chunk in handle_model_stream(request, messages):
+                yield chunk
+
         return StreamingResponse(
-            handle_model_stream(request, messages),
+            security_wrapped_stream(),
             media_type="application/x-ndjson"
         )
     except Exception as e:

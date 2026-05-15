@@ -64,6 +64,8 @@ def _execute_chat_request(payload: Dict):
                                 state["thinking_content"] += msg["thinking"]
                             if "tool_calls" in msg:
                                 add_log("TOOL", msg["tool_calls"])
+                        if "security" in chunk:
+                            add_log("SECURITY", chunk["security"])
                 
                 add_log("RESPONSE", {"content": state["full_response"], "thinking": state["thinking_content"]})
         except Exception as e:
