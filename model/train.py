@@ -22,8 +22,11 @@ def train():
     with open(corpus_path, 'r') as f:
         data = json.load(f)
         
-    texts = [item['text'] for item in data]
-    labels = [1 if item['label'] == 'injection' else 0 for item in data]
+    train_data = [item for item in data if item.get('split') == 'train']
+    print(f"Training on {len(train_data)} samples...")
+    
+    texts = [item['text'] for item in train_data]
+    labels = [1 if item['label'] == 'injection' else 0 for item in train_data]
     
     print("Training model...")
     vectorizer = TfidfVectorizer(ngram_range=(1, 3), analyzer='char_wb')

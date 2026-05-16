@@ -16,7 +16,21 @@ FUZZY_PATTERNS = [
     "jailbreak",
     "developer",
     "password",
-    "secret"
+    "secret",
+    "dump",
+    "prompt",
+    "instructions",
+    "directive",
+    "execute",
+    "run",
+    "bypass",
+    "forget",
+    "unlock",
+    "unrestricted",
+    "malware",
+    "admin",
+    "console",
+    "terminal"    
 ]
 
 # Risk score thresholds for visual feedback

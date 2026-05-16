@@ -56,10 +56,46 @@ class SecurityPreprocessor:
         return text.lower()
 
     def _normalize(self, text: str) -> str:
-        """Normalizes whitespace and character repetitions."""
-        text = re.sub(r'\s+', ' ', text)
+        """Normalizes whitespace and reconstructs spaced-out obfuscation."""
+        # Standardize whitespace
+        text = re.sub(r'\s+', ' ', text).strip()
+        
+        # Reconstruct spaced-out words (e.g., 'm a l w a r e')
+        text = self._reconstruct_spaced_text(text)
+        
+        # Standard character repetition cleanup
         text = re.sub(r'(.)\1{3,}', r'\1', text)
+        
         return text
+
+    def _reconstruct_spaced_text(self, text: str) -> str:
+        """
+        Detects and joins sequences of single-character 'spaced' words.
+        
+        High level role: This is a defensive filter against token-splitting attacks 
+        where an attacker injects spaces between characters to bypass simple filters 
+        (e.g., 'm a l w a r e'). It identifies chains of 3 or more single-character 
+        tokens and collapses the spaces between them to reconstruct the original 
+        word for the classifier. It is designed to ignore natural language patterns 
+        like 'I am' or 'a lion' by requiring a minimum chain length of 3.
+
+        Args:
+            text (str): The normalized string to process.
+
+        Returns:
+            str: The text with obfuscated word chains reconstructed.
+            
+        Examples:
+            >>> _reconstruct_spaced_text("c r e a t e  m a l w a r e")
+            "create malware"
+            >>> _reconstruct_spaced_text("I am a lion")
+            "I am a lion"
+        """
+        def de_space_match(match):
+            return match.group(0).replace(" ", "")
+
+        # Regex: finds 3 or more single-character words separated by spaces
+        return re.sub(r'(?i)\b\w(?:\s\w){2,}\b', de_space_match, text)
 
     def _decode_base64(self, text: str) -> str:
         """Attempts to find and decode Base64 strings."""
