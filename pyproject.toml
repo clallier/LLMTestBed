@@ -32,3 +32,6 @@ dependencies = [
 pythonpath = ["src"]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+
+[tool.pyright]
+extraPaths = ["."]

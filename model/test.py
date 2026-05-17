@@ -36,12 +36,12 @@ def run_test():
 
 def _evaluate_case(item: Dict[str, Any], engine: SecurityPreprocessor) -> Dict[str, Any]:
     """Evaluates a single test case."""
-    start_time = time.perf_counter()
-    risk_score = engine.calculate_risk(item['text'])
-    latency = (time.perf_counter() - start_time) * 1000
+    start_time: float = time.perf_counter()
+    risk_score: float = engine.calculate_risk(item['text'])
+    latency: float = (time.perf_counter() - start_time) * 1000
     
-    is_injection = item['label'] == 'injection'
-    is_correct = (risk_score >= 0.5) == is_injection
+    is_injection: bool = item['label'] == 'injection'
+    is_correct: bool = (risk_score >= 0.5) == is_injection
     
     return {
         "text": item['text'],

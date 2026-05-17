@@ -64,7 +64,9 @@ async def handle_model_stream(request: ChatRequest, messages: List[Dict[str, Any
             logger.error(f"Failed to parse JSON chunk: {chunk_str}")
             continue
             
-        if "message" in data:
+        if "security" in data:
+            yield json.dumps(data) + "\n"
+        elif "message" in data:
             msg = data["message"]
             # Yield content for the chat UI
             if "content" in msg and msg["content"]:

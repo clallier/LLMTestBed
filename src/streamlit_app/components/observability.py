@@ -97,11 +97,17 @@ def render_formatted_detail(log: Dict[str, Any]):
 
 def _render_request_details(data: Dict[str, Any]):
     """Renders formatted request payload details."""
-    st.markdown("#### 🚀 Outgoing Request")
+    st.markdown("#### 🚀 User Request")
     st.markdown(f"**Target Model:** `{data.get('model', 'unknown')}`")
-    
+
+    if "messages" in data:
+        st.markdown("#### 💬 Last User Message")
+        last_message = next((msg for msg in reversed(data["messages"]) if msg["role"] == "user"), None)
+        if last_message:
+            st.chat_message(last_message["role"]).write(last_message["content"])
+
     if "system" in data:
-        with st.expander("📝 System Instructions", expanded=True):
+        with st.expander("📝 System Instructions", expanded=False):
             st.code(data['system'], language="markdown")
             
     if "tools" in data and data['tools']:
@@ -109,7 +115,7 @@ def _render_request_details(data: Dict[str, Any]):
             for tool in data['tools']:
                 st.markdown(f"- **{tool['function']['name']}**: {tool['function']['description']}")
                 
-    st.markdown("#### 💬 Conversation Context")
+    st.markdown("#### 💬 Conversation History")
     for msg in data.get("messages", []):
         st.chat_message(msg['role']).write(msg['content'])
 

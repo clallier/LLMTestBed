@@ -2,8 +2,43 @@ import pytest
 import respx
 import json
 from httpx import AsyncClient, Response, ASGITransport
-from backend.main import app, global_exception_handler, global_exception_handler
-from tests.mocks.ollama_chunks import MOCK_CHUNKS_NORMAL, MOCK_CHUNKS_MALFORMED
+from backend.main import app, global_exception_handler
+from .mocks.ollama_chunks import MOCK_CHUNKS_NORMAL, MOCK_CHUNKS_MALFORMED
+
+async def _parse_chat_stream(response: Response) -> tuple[str, bool]:
+    """
+    Parses the streaming NDJSON response from the /chat endpoint.
+
+    High level role: Extracts and aggregates the generated message content
+    while checking for the presence of the initial security analysis packet.
+
+    Args:
+        response (Response): The HTTPX async response object containing the NDJSON stream.
+
+    Returns:
+        tuple[str, bool]: A tuple containing:
+            - The accumulated message content (str).
+            - Whether the security packet was successfully detected (bool).
+
+    Potential errors:
+        json.JSONDecodeError: If a line in the stream is not valid JSON.
+
+    Examples:
+        >>> content, security_received = await _parse_chat_stream(response)
+        >>> assert security_received
+        >>> assert content == "Hello world!"
+    """
+    content = ""
+    security_chunk_received = False
+    async for line in response.aiter_lines():
+        if line:
+            data = json.loads(line)
+            if "security" in data:
+                security_chunk_received = True
+            elif "message" in data and "content" in data["message"]:
+                content += data["message"]["content"]
+    return content, security_chunk_received
+
 
 @pytest.mark.asyncio
 async def test_chat_endpoint_no_tools():
@@ -20,14 +55,10 @@ async def test_chat_endpoint_no_tools():
             })
             
         assert response.status_code == 200
-        # Collect stream content
-        content = ""
-        async for line in response.aiter_lines():
-            if line:
-                data = json.loads(line)
-                content += data["message"]["content"]
-        
+        content, security_chunk_received = await _parse_chat_stream(response)
+        assert security_chunk_received
         assert content == "Hello world!"
+
 
 @pytest.mark.asyncio
 async def test_chat_endpoint_malformed_json(caplog):
@@ -44,13 +75,8 @@ async def test_chat_endpoint_malformed_json(caplog):
             })
             
         assert response.status_code == 200
-        # Collect stream content
-        content = ""
-        async for line in response.aiter_lines():
-            if line:
-                data = json.loads(line)
-                content += data["message"]["content"]
-        
+        content, security_chunk_received = await _parse_chat_stream(response)
+        assert security_chunk_received
         assert content == "Hello world!"
         assert "Failed to parse JSON chunk: THIS IS NOT VALID JSON" in caplog.text
 
@@ -141,8 +167,7 @@ async def test_chat_endpoint_with_tools():
 async def test_global_exception_handler_direct():
     response = await global_exception_handler(None, ValueError("Direct exception test"))
     assert response.status_code == 500
-    import json
-    data = json.loads(response.body)
+    data = json.loads(bytes(response.body))
     assert "Direct exception test" in data["message"]
     assert "traceback" in data
 

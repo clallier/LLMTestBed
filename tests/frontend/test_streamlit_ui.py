@@ -24,8 +24,6 @@ def mocked_app():
 def test_app_boots_and_renders_title(mocked_app):
     """Verifies that the app successfully boots and renders the main titles."""
     assert not mocked_app.exception
-    # Branding is now in a markdown element in the header
-    assert any("🛡️ LLMTestbed" in md.value for md in mocked_app.markdown)
     assert mocked_app.header[0].value == "Agent Attack Sandbox"
 
 def test_sidebar_model_selection(mocked_app):

@@ -7,7 +7,11 @@ from streamlit_app.styles.style_loader import apply_styles
 from streamlit_app.presets.attacks import ATTACK_TEMPLATES
 
 # Page Config (Back to Wide for Command Center feel)
-st.set_page_config(page_title="LLMTestbed", layout="wide")
+st.set_page_config(
+    page_title="LLMTestbed",
+    page_icon="src/streamlit_app/assets/logo.png",
+    layout="wide"
+)
 
 # Apply Styles from folder
 apply_styles()
