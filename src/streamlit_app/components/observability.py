@@ -5,9 +5,10 @@ High level role: Renders telemetry lists, JSON inspectors, and custom trace form
 Delegates active navigation and metric formatting calculations to ObservabilityProcessor.
 """
 
+from typing import Any, Dict, List
+
 import streamlit as st
-import json
-from typing import Dict, Any, List
+
 from streamlit_app.components.processors.observability import ObservabilityProcessor
 
 # Component-level ObservabilityProcessor Instance (Dependency Injection)
@@ -124,32 +125,43 @@ def _render_inspector_header(selected_log: Dict[str, Any]):
             use_container_width=True
         )
 
+def _render_user_message(content: str):
+    """Renders the user message bubble in the trace history."""
+    st.chat_message("user").write(content)
+
+def _render_assistant_message(content: str, tool_calls: Any):
+    """Renders the assistant message bubble including any associated tool calls."""
+    if tool_calls:
+        with st.chat_message("assistant", avatar="⚙️"):
+            st.markdown("**Generated Tool Calls:**")
+            for tc in tool_calls:
+                func = tc.get("function", {})
+                name = func.get("name", "unknown")
+                args = func.get("arguments", {})
+                args_str = _processor.format_tool_arguments(args)
+                st.code(f"{name}({args_str})", language="python")
+            if content:
+                st.markdown(content)
+    else:
+        st.chat_message("assistant").write(content)
+
+def _render_tool_message(name: str, content: str):
+    """Renders the tool response bubble in the trace history."""
+    with st.chat_message("tool", avatar="🛠️"):
+        st.markdown(f"**Tool Response (`{name}`):**")
+        st.code(content, language="text")
+
 def _render_history_message(msg: Dict[str, Any]):
     """Renders history items preventing empty text rendering blocks."""
-    role = msg.get("role")
+    role = str(msg.get("role") or "unknown")
     content = msg.get("content", "")
     
     if role == "user":
-        st.chat_message("user").write(content)
+        _render_user_message(content)
     elif role == "assistant":
-        tool_calls = msg.get("tool_calls")
-        if tool_calls:
-            with st.chat_message("assistant", avatar="⚙️"):
-                st.markdown("**Generated Tool Calls:**")
-                for tc in tool_calls:
-                    func = tc.get("function", {})
-                    name = func.get("name", "unknown")
-                    args = func.get("arguments", {})
-                    args_str = _processor.format_tool_arguments(args)
-                    st.code(f"{name}({args_str})", language="python")
-                if content:
-                    st.markdown(content)
-        else:
-            st.chat_message("assistant").write(content)
+        _render_assistant_message(content, msg.get("tool_calls"))
     elif role == "tool":
-        with st.chat_message("tool", avatar="🛠️"):
-            st.markdown(f"**Tool Response (`{msg.get('name', 'unknown')}`):**")
-            st.code(content, language="text")
+        _render_tool_message(str(msg.get("name") or "unknown"), content)
     else:
         st.chat_message(role).write(content)
 

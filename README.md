@@ -29,3 +29,25 @@ Local setup for testing LLM agent security with Ollama.
 - Backend handles the "Agent Loop" (calls tools, feeds results back to LLM).
 - Logs show full JSON history + model "thinking" if supported.
 - Use the "Vulnerable Agent" preset for testing injections.
+
+## Testing & Code Quality
+
+The repository includes a suite of automated unit tests, end-to-end tests, and strict static analysis tools to maintain high modularity, type-safety, and logic bounds.
+
+### 1. Automated Testing (pytest)
+To sync development/testing optional dependencies and run the test suite:
+```bash
+# Sync optional dev packages
+uv sync --all-extras
+
+# Run full test suite (includes AST custom code smell checker)
+uv run pytest
+```
+
+### 2. Static Analysis & Code Smell Tools
+You can execute standard static code quality checkers locally using `uv`:
+* **Linting & Style Checks (Ruff):** `uv run ruff check src/`
+* **Static Refactoring & Smells (Pylint):** `uv run pylint src/`
+* **Cognitive Complexity Analysis (Radon):** `uv run radon cc src/ -a`
+* **Static Security Scanning (Bandit):** `uv run bandit -r src/`
+

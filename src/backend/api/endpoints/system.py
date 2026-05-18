@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException
+
 from backend.core.ollama_client import ollama_client
 from backend.core.tool_registry import TOOLS
 
@@ -19,7 +20,7 @@ async def list_models():
     try:
         return await ollama_client.list_models()
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 @router.get("/tools", summary="List Tools")
 async def list_tools():

@@ -1,10 +1,11 @@
 import streamlit as st
-from streamlit_app.components.sidebar import render_sidebar
-from streamlit_app.components.header import render_top_nav, close_top_nav
-from streamlit_app.components.chat import render_message_history, process_assistant_response
+
+from streamlit_app.components.chat import process_assistant_response, render_message_history
+from streamlit_app.components.header import close_top_nav, render_top_nav
 from streamlit_app.components.observability import render_observability_hub
-from streamlit_app.styles.style_loader import apply_styles
+from streamlit_app.components.sidebar import render_sidebar
 from streamlit_app.presets.attacks import ATTACK_TEMPLATES
+from streamlit_app.styles.style_loader import apply_styles
 
 # Page Config
 st.set_page_config(

@@ -1,5 +1,6 @@
 import streamlit as st
 
+
 def render_top_nav():
     """
     Renders the page header with navigation and branding.

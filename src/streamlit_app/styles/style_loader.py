@@ -1,5 +1,7 @@
-import streamlit as st
 from pathlib import Path
+
+import streamlit as st
+
 
 def apply_styles():
     """Reads the main.css file relative to this script and injects it."""

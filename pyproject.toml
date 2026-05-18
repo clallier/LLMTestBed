@@ -28,6 +28,15 @@ dependencies = [
     "joblib"
 ]
 
+[project.optional-dependencies]
+dev = [
+    "ruff",
+    "pylint",
+    "radon",
+    "bandit",
+    "pyright"
+]
+
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
@@ -35,3 +44,13 @@ asyncio_mode = "auto"
 
 [tool.pyright]
 extraPaths = ["."]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "B", "I", "S"]
+# E501: Line too long (allows long natural-language prompts and base64 security templates)
+# B007: Unused loop variable (allows descriptive unpacking variables in dictionary iterations)
+ignore = ["E501", "B007"]

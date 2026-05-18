@@ -6,8 +6,10 @@ and formats safety status summaries and JSON export structures.
 """
 
 import json
+from typing import Any, Dict, Tuple
+
 import streamlit as st
-from typing import Dict, Any, Tuple
+
 
 class ObservabilityProcessor:
     """

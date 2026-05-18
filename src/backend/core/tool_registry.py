@@ -1,4 +1,5 @@
-from typing import Dict, Any, Callable
+from typing import Callable, Dict
+
 
 def read_sensitive_file(filename: str) -> str:
     """Mock tool to simulate reading sensitive files."""

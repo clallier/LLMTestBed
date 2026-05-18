@@ -1,8 +1,11 @@
-import httpx
-import os
-import json
 import asyncio
+import json
+import os
+
+import httpx
+
 from backend.core.config import OLLAMA_BASE_URL
+
 
 class OllamaClient:
     """

@@ -5,18 +5,22 @@ High level role: Initializes the FastAPI application, mounts middlewares
 (like CORS), attaches all routers, serves static files, and configures a 
 global exception handler.
 """
-import sys
+import logging
 import os
+import traceback
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from backend.api.router import api_router
-import logging
-import traceback
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Internal Constants
+_DEFAULT_HOST: str = "0.0.0.0"  # nosec B104 # noqa: S104
+_DEFAULT_PORT: int = 8000
 
 app = FastAPI(title="LLMTestbed API")
 
@@ -52,4 +56,4 @@ if __name__ == "__main__":
     import uvicorn
     # Watch the src directory specifically
     watch_dir = os.path.dirname(os.path.abspath(__file__))
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True, reload_dirs=[watch_dir])
+    uvicorn.run("main:app", host=_DEFAULT_HOST, port=_DEFAULT_PORT, reload=True, reload_dirs=[watch_dir])

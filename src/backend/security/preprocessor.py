@@ -5,12 +5,15 @@ High level role: Orchestrates the security pipeline:
 1. Filters: Normalization, Base64 decoding, Fuzzy matching.
 2. Classification: Uses pre-trained Bayesian models to calculate risk.
 """
-import re
 import base64
 import os
+import re
+
 import joblib
-from rapidfuzz import process, fuzz
+from rapidfuzz import fuzz, process
+
 from backend.security.constants import FUZZY_PATTERNS, MAX_TEXT_LENGTH, MIN_WORD_LENGTH
+
 
 class SecurityPreprocessor:
     """Hybrid security engine for cleaning and scoring prompts."""

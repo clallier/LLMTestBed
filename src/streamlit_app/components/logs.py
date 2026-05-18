@@ -1,5 +1,6 @@
 import streamlit as st
 
+
 def render_log_panel():
     """
     Renders the live logs panel in the Streamlit interface.

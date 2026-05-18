@@ -5,11 +5,14 @@ High level role: Handles Streamlit UI layouts, bubble styling, and real-time str
 All data processing and API coordinator structures are delegated to ChatProcessor.
 """
 
+from typing import Any, Dict, List
+
 import streamlit as st
-from typing import Dict, Any, List
-from streamlit_app.components.processors.logs import add_log
+
 from streamlit_app.components.processors.chat import ChatProcessor
-from streamlit_app.constants import AVATAR_TOOLS, ROLE_TOOLS, ROLE_ASSISTANT, get_backend_url
+from streamlit_app.components.processors.logs import add_log
+from streamlit_app.constants import AVATAR_TOOLS, ROLE_ASSISTANT, ROLE_TOOLS, get_backend_url
+
 
 def _get_processor() -> ChatProcessor:
     """Lazily instantiates the completions processor with the active backend URL."""
@@ -56,6 +59,13 @@ def render_message_history():
     for message in st.session_state.messages:
         render_message(message)
 
+def _append_messages_to_history(tools_content: str, assistant_content: str):
+    """Helper to append finalized assistant and tools blocks to message history."""
+    if tools_content:
+        st.session_state.messages.append({"role": ROLE_TOOLS, "content": tools_content})
+    if assistant_content:
+        st.session_state.messages.append({"role": ROLE_ASSISTANT, "content": assistant_content})
+
 def render_streaming_response(processor: ChatProcessor, payload: Dict[str, Any]):
     """
     Executes raw HTTP response stream fetches and coordinates real-time visual updates.
@@ -69,16 +79,11 @@ def render_streaming_response(processor: ChatProcessor, payload: Dict[str, Any])
     Returns:
         None
     """
-    tools_container = None
-    assistant_container = None
-    tools_placeholder = None
-    assistant_placeholder = None
-    
-    tools_content = ""
-    assistant_content = ""
+    tools_container, assistant_container = None, None
+    tools_placeholder, assistant_placeholder = None, None
+    tools_content, assistant_content = "", ""
     
     with st.spinner("Thinking..."):
-        # Iterate over stream blocks yielded by ChatProcessor
         for block_type, text in processor.stream_response(payload):
             if block_type == ROLE_TOOLS:
                 if not tools_container:
@@ -95,11 +100,7 @@ def render_streaming_response(processor: ChatProcessor, payload: Dict[str, Any])
                 if assistant_placeholder:
                     assistant_placeholder.markdown(assistant_content)
             
-    # Append completed messages to history
-    if tools_content:
-        st.session_state.messages.append({"role": ROLE_TOOLS, "content": tools_content})
-    if assistant_content:
-        st.session_state.messages.append({"role": ROLE_ASSISTANT, "content": assistant_content})
+    _append_messages_to_history(tools_content, assistant_content)
 
 def process_assistant_response(
     selected_model: str,

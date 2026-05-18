@@ -5,8 +5,10 @@ High level role: Manages live logs tracing states and session appending.
 """
 
 import time
-import streamlit as st
 from typing import Any
+
+import streamlit as st
+
 
 class LogsProcessor:
     """

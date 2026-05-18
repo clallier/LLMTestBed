@@ -5,11 +5,14 @@ High level role: Handles non-rendering tasks such as payload building, stream pa
 state accumulation, and HTTP request coordination.
 """
 
-import httpx
 import json
-from typing import Dict, Any, List, Generator, Tuple, Optional
+from typing import Any, Dict, Generator, List, Optional, Tuple
+
+import httpx
 import streamlit as st
+
 from streamlit_app.components.processors.logs import add_log
+
 
 class ChatProcessor:
     """
@@ -92,32 +95,9 @@ class ChatProcessor:
         
         try:
             with httpx.stream("POST", f"{self.backend_url}/chat", json=payload, timeout=self._TIMEOUT_SECONDS) as r:
-                for line in r.iter_lines():
-                    if not line:
-                        continue
-                    chunk = json.loads(line)
-                    
-                    self._record_raw_history(chunk)
-                    
-                    # Determine block type for rendering
-                    block_type = "assistant"
-                    if "message" in chunk and "tool_calls" in chunk["message"] and chunk["message"]["tool_calls"]:
-                        block_type = "tools"
-                    elif "tool_response" in chunk:
-                        block_type = "tools"
+                yield from self._consume_http_stream(r, state)
                         
-                    block = self._process_chunk(chunk, state)
-                    if block:
-                        yield (block_type, block)
-                        
-            if state["assistant_content"]:
-                st.session_state.raw_messages.append({
-                    "role": "assistant",
-                    "content": state["assistant_content"]
-                })
-                
-            clean_content = state["assistant_content"] if state["assistant_content"] else state["full_response"]
-            add_log("RESPONSE", {"content": clean_content, "thinking": state["thinking_content"]})
+            self._finalize_stream_state(state)
             
         except Exception as e:
             st.error(f"Error: {e}")
@@ -126,6 +106,54 @@ class ChatProcessor:
     # ==========================================
     # Private Internal Helpers
     # ==========================================
+
+    def _consume_http_stream(self, r: httpx.Response, state: Dict[str, Any]) -> Generator[Tuple[str, str], None, None]:
+        """Iterates over the lines of the HTTP stream, updates state, and yields blocks."""
+        for line in r.iter_lines():
+            if not line:
+                continue
+            chunk = json.loads(line)
+            
+            self._record_raw_history(chunk)
+            block_type = self._classify_chunk_type(chunk)
+            block = self._process_chunk(chunk, state)
+            if block:
+                yield (block_type, block)
+
+    def _classify_chunk_type(self, chunk: Dict[str, Any]) -> str:
+        """
+        Determines if the chunk is an assistant completion or a tool execution step.
+
+        Arguments:
+            chunk (Dict[str, Any]): The incoming chunk data.
+
+        Returns:
+            str: "tools" or "assistant".
+        """
+        if "message" in chunk and "tool_calls" in chunk["message"] and chunk["message"]["tool_calls"]:
+            return "tools"
+        if "tool_response" in chunk:
+            return "tools"
+        return "assistant"
+
+    def _finalize_stream_state(self, state: Dict[str, Any]):
+        """
+        Records finalized assistant content to history and writes completion logs.
+
+        Arguments:
+            state (Dict[str, Any]): The accumulated stream state parameters.
+
+        Returns:
+            None
+        """
+        if state["assistant_content"]:
+            st.session_state.raw_messages.append({
+                "role": "assistant",
+                "content": state["assistant_content"]
+            })
+            
+        clean_content = state["assistant_content"] if state["assistant_content"] else state["full_response"]
+        add_log("RESPONSE", {"content": clean_content, "thinking": state["thinking_content"]})
 
     def _record_raw_history(self, chunk: Dict[str, Any]):
         """Records raw messages dynamically to raw_messages to keep protocols intact."""

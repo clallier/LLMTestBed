@@ -1,9 +1,11 @@
-from pydantic import functional_serializers
+from typing import Any, Dict, List, Tuple
+
 import streamlit as st
-from typing import Tuple, List, Dict, Any
+
 from streamlit_app.api.client import fetch_models, fetch_tools
-from streamlit_app.presets.system import SYSTEM_PRESETS
 from streamlit_app.presets.attacks import ATTACK_TEMPLATES
+from streamlit_app.presets.system import SYSTEM_PRESETS
+
 
 def render_sidebar() -> Tuple[str, str, List[str], List[Dict[str, Any]], str]:
     """Renders the sidebar and returns the selected configuration."""

@@ -1,5 +1,7 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
+
 from backend.schemas.chat import ChatRequest
+
 
 def build_ollama_payload(request: ChatRequest, stream: bool = False) -> Dict[str, Any]:
     """
@@ -30,7 +32,7 @@ def build_ollama_payload(request: ChatRequest, stream: bool = False) -> Dict[str
         >>> print(payload['stream'])
         True
     """
-    payload = {
+    payload: Dict[str, Any] = {
         "model": request.model,
         "messages": [msg.model_dump() for msg in request.messages],
         "stream": stream

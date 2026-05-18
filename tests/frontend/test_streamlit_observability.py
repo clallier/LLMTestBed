@@ -1,6 +1,6 @@
-import pytest
 from streamlit.testing.v1 import AppTest
 from streamlit_app.components.observability import render_formatted_detail
+import json
 
 def run_observability_safe():
     """

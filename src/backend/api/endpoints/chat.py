@@ -1,8 +1,10 @@
+import logging
+
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
-from backend.schemas.chat import ChatRequest
+
 from backend.core.agent_processor import AgentStreamProcessor
-import logging
+from backend.schemas.chat import ChatRequest
 
 logger = logging.getLogger(__name__)
 
@@ -31,4 +33,4 @@ async def chat(request: ChatRequest):
         )
     except Exception as e:
         logger.error(f"Error in chat endpoint: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e

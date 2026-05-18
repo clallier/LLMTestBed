@@ -4,9 +4,12 @@ API Client for communicating with the backend completions server.
 High level role: Provides clean async/sync HTTP client fetchers for models, tools, and streams.
 """
 
+from typing import Any, AsyncGenerator, Dict, List
+
 import httpx
-from typing import List, Dict, Any, AsyncGenerator
+
 from streamlit_app.constants import get_backend_url
+
 
 def __getattr__(name: str) -> Any:
     """Dynamically resolves BACKEND_URL to support legacy test assertions without import caching."""

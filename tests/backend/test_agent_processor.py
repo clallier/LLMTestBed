@@ -208,7 +208,7 @@ class TestAgentStreamProcessor:
         )
         assert content == "Passed!"
 
-    def test_tool_response_name_field(self):
+    async def test_tool_response_name_field(self):
         """
         Verifies that tool responses contain the required 'name' field in compliance with standard protocols.
 
@@ -230,7 +230,7 @@ class TestAgentStreamProcessor:
         assert res["name"] == "read_sensitive_file"
         assert "SECRET_DATABASE_URL" in res["content"]
 
-    def test_tool_call_id_propagation_standard(self):
+    async def test_tool_call_id_propagation_standard(self):
         """
         Verifies that tool_call_id is successfully propagated during nominal tool executions.
         """
