@@ -116,7 +116,8 @@ class ChatProcessor:
                     "content": state["assistant_content"]
                 })
                 
-            add_log("RESPONSE", {"content": state["full_response"], "thinking": state["thinking_content"]})
+            clean_content = state["assistant_content"] if state["assistant_content"] else state["full_response"]
+            add_log("RESPONSE", {"content": clean_content, "thinking": state["thinking_content"]})
             
         except Exception as e:
             st.error(f"Error: {e}")

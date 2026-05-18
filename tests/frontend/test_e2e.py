@@ -89,13 +89,6 @@ def test_full_e2e_flow(live_backend):
     # Force the BACKEND_URL for the app to point to the test server
     os.environ["BACKEND_URL"] = live_backend
     
-    # Update BACKEND_URL references if modules are already imported (e.g. from previous tests)
-    for module_name in ["streamlit_app.constants", "streamlit_app.api.client", "streamlit_app.components.chat"]:
-        if module_name in sys.modules:
-            setattr(sys.modules[module_name], "BACKEND_URL", live_backend)
-            if module_name == "streamlit_app.components.chat" and hasattr(sys.modules[module_name], "_processor"):
-                sys.modules[module_name]._processor.backend_url = live_backend
-    
     # Initialize AppTest with a longer timeout for E2E
     at = AppTest.from_file("src/streamlit_app/app.py", default_timeout=30).run()
     
@@ -141,6 +134,13 @@ def test_full_e2e_flow(live_backend):
     assert "TOOL" in log_types
     assert "TOOL_RESPONSE" in log_types
     assert "RESPONSE" in log_types
+    
+    # Verify isolated RESPONSE log content (no intermediate tool executions)
+    response_log = next(log for log in logs if log["type"] == "RESPONSE")
+    response_content = response_log["data"]["content"]
+    assert "result of the test" in response_content
+    assert "Tool Call" not in response_content
+    assert "Tool Response" not in response_content
     
     # Verify Parallel Tool Calls data
     tool_log = next(log for log in logs if log["type"] == "TOOL")

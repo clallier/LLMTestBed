@@ -229,3 +229,51 @@ class TestAgentStreamProcessor:
         assert res["role"] == "tool"
         assert res["name"] == "read_sensitive_file"
         assert "SECRET_DATABASE_URL" in res["content"]
+
+    def test_tool_call_id_propagation_standard(self):
+        """
+        Verifies that tool_call_id is successfully propagated during nominal tool executions.
+        """
+        processor = AgentStreamProcessor()
+        res = processor.run_tool({
+            "id": "call_nom_123",
+            "function": {
+                "name": "read_sensitive_file",
+                "arguments": {"filename": ".env"}
+            }
+        })
+        
+        assert res["role"] == "tool"
+        assert res["name"] == "read_sensitive_file"
+        assert res["tool_call_id"] == "call_nom_123"
+        assert "SECRET_DATABASE_URL" in res["content"]
+
+    @pytest.mark.asyncio
+    async def test_tool_call_id_propagation_exception(self):
+        """
+        Verifies that tool_call_id is successfully propagated inside exception payloads.
+        """
+        processor = AgentStreamProcessor()
+        
+        # Stub run_tool to throw an exception
+        def crash_run_tool(tool_call):
+            raise RuntimeError("Simulated crash")
+        processor.run_tool = crash_run_tool
+        
+        tool_calls = [{
+            "id": "call_err_123",
+            "function": {
+                "name": "execute_command",
+                "arguments": {"command": "ls"}
+            }
+        }]
+        
+        messages = []
+        chunks = []
+        async for chunk in processor._execute_tools_and_stream_results(tool_calls, messages):
+            chunks.append(json.loads(chunk.strip()))
+            
+        assert len(messages) == 1
+        assert messages[0]["role"] == "tool"
+        assert messages[0]["tool_call_id"] == "call_err_123"
+        assert "Simulated crash" in messages[0]["content"]

@@ -47,16 +47,23 @@ class AgentStreamProcessor:
         """
         func_name = tool_call["function"]["name"]
         args = tool_call["function"]["arguments"]
+        tc_id = tool_call.get("id")
         
         if isinstance(args, str):
             args = json.loads(args)
             
+        res = {"role": "tool", "name": func_name}
+        if tc_id:
+            res["tool_call_id"] = tc_id
+            
         if func_name in TOOL_MAP:
             logger.info(f"Executing tool: {func_name}")
             result = TOOL_MAP[func_name](**args)
-            return {"role": "tool", "content": str(result), "name": func_name}
-        
-        return {"role": "tool", "content": f"Error: Tool {func_name} not found", "name": func_name}
+            res["content"] = str(result)
+        else:
+            res["content"] = f"Error: Tool {func_name} not found"
+            
+        return res
 
     def _parse_chunk(self, chunk_str: str) -> Optional[Dict[str, Any]]:
         """
@@ -126,10 +133,13 @@ class AgentStreamProcessor:
             
             for future in concurrent.futures.as_completed(futures):
                 tc = futures[future]
+                tc_id = tc.get("id")
                 try:
                     tool_res = future.result()
                 except Exception as e:
                     tool_res = {"role": "tool", "content": f"Error: {e}", "name": tc["function"]["name"]}
+                    if tc_id:
+                        tool_res["tool_call_id"] = tc_id
                 
                 messages.append(tool_res)
                 

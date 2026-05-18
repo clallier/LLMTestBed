@@ -9,10 +9,11 @@ import streamlit as st
 from typing import Dict, Any, List
 from streamlit_app.components.processors.logs import add_log
 from streamlit_app.components.processors.chat import ChatProcessor
-from streamlit_app.constants import AVATAR_TOOLS, ROLE_TOOLS, ROLE_ASSISTANT, BACKEND_URL
+from streamlit_app.constants import AVATAR_TOOLS, ROLE_TOOLS, ROLE_ASSISTANT, get_backend_url
 
-# Component-level ChatProcessor Instance (Dependency Injection)
-_processor = ChatProcessor(BACKEND_URL)
+def _get_processor() -> ChatProcessor:
+    """Lazily instantiates the completions processor with the active backend URL."""
+    return ChatProcessor(get_backend_url())
 
 # ==========================================
 # Public API (Rendering Logic)
@@ -120,10 +121,11 @@ def process_assistant_response(
     Returns:
         None
     """
-    payload = _processor.build_chat_payload(selected_model, system_prompt, selected_tool_names, available_tools)
+    processor = _get_processor()
+    payload = processor.build_chat_payload(selected_model, system_prompt, selected_tool_names, available_tools)
     add_log("REQUEST", payload)
 
-    render_streaming_response(_processor, payload)
+    render_streaming_response(processor, payload)
     
     st.session_state.is_processing = False
     st.rerun()
