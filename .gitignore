@@ -8,3 +8,14 @@ wheels/
 
 # Virtual environments
 .venv
+.venv_homebrew/
+
+# IDE and OS
+.vscode/
+.DS_Store
+
+# Caches and Tools
+.pytest_cache/
+.uv_cache/
+.uv_cache_temp/
+.uv_python/

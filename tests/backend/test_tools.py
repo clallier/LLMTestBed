@@ -13,4 +13,4 @@ def test_send_external_email():
 def test_execute_command():
     assert "Permission denied" in execute_command("rm -rf /")
     assert "Permission denied" in execute_command("DROP TABLE users")
-    assert "Success" in execute_command("ls -la")
+    assert "README.md" in execute_command("ls -la")

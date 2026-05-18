@@ -1,9 +1,34 @@
+"""
+Trace Explorer visualizer component for the Observability Hub.
+
+High level role: Renders telemetry lists, JSON inspectors, and custom trace formats.
+Delegates active navigation and metric formatting calculations to ObservabilityProcessor.
+"""
+
 import streamlit as st
 import json
 from typing import Dict, Any, List
+from streamlit_app.components.processors.observability import ObservabilityProcessor
+
+# Component-level ObservabilityProcessor Instance (Dependency Injection)
+_processor = ObservabilityProcessor()
+
+# ==========================================
+# Public API (Rendering Logic)
+# ==========================================
 
 def render_observability_hub():
-    """Renders a Langfuse-inspired Observability Hub for deep trace analysis."""
+    """
+    Renders the Langfuse-inspired master-detail trace interface.
+
+    High level role: Coordinates dynamic sidebar columns and detail inspectors.
+
+    Arguments:
+        None
+
+    Returns:
+        None
+    """
     st.title("🕵️ Trace Explorer")
     st.markdown("Analyze system logs, tool interactions, and model reasoning in real-time.")
     
@@ -12,7 +37,7 @@ def render_observability_hub():
         st.info("No system traces found. Send a message in the Sandbox to generate logs.")
         return
 
-    _initialize_selection_state(len(logs))
+    _processor.initialize_selection_state(len(logs))
 
     master_col, detail_col = st.columns([1.2, 2.8], gap="large")
     with master_col:
@@ -20,15 +45,43 @@ def render_observability_hub():
     with detail_col:
         _render_inspector(logs)
 
-def _initialize_selection_state(logs_length: int):
-    """Initializes or resets the selected log index."""
-    if "selected_log_index" not in st.session_state:
-        st.session_state.selected_log_index = logs_length - 1
-    elif st.session_state.selected_log_index >= logs_length:
-        st.session_state.selected_log_index = logs_length - 1
+def render_formatted_detail(log: Dict[str, Any]):
+    """
+    Routes telemetry items to respective custom visual render templates.
+
+    High level role: Selects corresponding components based on logged item types.
+
+    Arguments:
+        log (Dict[str, Any]): Telemetry log dictionary.
+
+    Returns:
+        None
+    """
+    data = log['data']
+    log_type = log['type']
+
+    if log_type == "REQUEST":
+        _render_request_details(data)
+    elif log_type == "RESPONSE":
+        _render_response_details(data)
+    elif log_type == "TOOL":
+        _render_tool_details(data)
+    elif log_type == "TOOL_RESPONSE":
+        _render_tool_response_details(data)
+    elif log_type == "SECURITY":
+        _render_security_details(data)
+    elif log_type == "ERROR":
+        _render_error_details(data)
+    else:
+        st.info("No specific visualizer for this log type.")
+        st.write(data)
+
+# ==========================================
+# Private Internal Helpers (Rendering Only)
+# ==========================================
 
 def _render_trace_list(logs: List[Dict[str, Any]]):
-    """Renders the master list of all traces."""
+    """Renders the master list of all recorded system telemetry actions."""
     st.markdown("### 📜 Activity")
     for i, log in enumerate(reversed(logs)):
         idx = len(logs) - 1 - i
@@ -40,11 +93,10 @@ def _render_trace_list(logs: List[Dict[str, Any]]):
             use_container_width=True, 
             type="primary" if is_selected else "secondary"
         ):
-            st.session_state.selected_log_index = idx
-            st.rerun()
+            _processor.select_log(idx)
 
 def _render_inspector(logs: List[Dict[str, Any]]):
-    """Renders the detailed inspector for the selected trace."""
+    """Renders formatted and raw tab controls targeting selected indexes."""
     selected_log = logs[st.session_state.selected_log_index]
     
     _render_inspector_header(selected_log)
@@ -57,46 +109,52 @@ def _render_inspector(logs: List[Dict[str, Any]]):
         st.json(selected_log['data'])
 
 def _render_inspector_header(selected_log: Dict[str, Any]):
-    """Renders the title and export button for the inspector."""
+    """Renders metadata headers and export action buttons."""
     head_col1, head_col2 = st.columns([3, 1])
     with head_col1:
         st.markdown(f"### 🔍 Inspector: `{selected_log['type']}`")
         st.caption(f"Logged at {selected_log['time']}")
     with head_col2:
-        export_payload = {
-            "timestamp": selected_log['time'],
-            "type": selected_log['type'],
-            "data": selected_log['data']
-        }
+        export_str = _processor.format_export_payload(selected_log)
         st.download_button(
             "📥 Export JSON",
-            data=json.dumps(export_payload, indent=2),
+            data=export_str,
             file_name=f"trace_{selected_log['time'].replace(':', '-')}.json",
             mime="application/json",
             use_container_width=True
         )
 
-def render_formatted_detail(log: Dict[str, Any]):
-    """Routes the log data to the appropriate visualizer based on type."""
-    data = log['data']
-    log_type = log['type']
-
-    if log_type == "REQUEST":
-        _render_request_details(data)
-    elif log_type == "RESPONSE":
-        _render_response_details(data)
-    elif log_type == "TOOL":
-        _render_tool_details(data)
-    elif log_type == "SECURITY":
-        _render_security_details(data)
-    elif log_type == "ERROR":
-        _render_error_details(data)
+def _render_history_message(msg: Dict[str, Any]):
+    """Renders history items preventing empty text rendering blocks."""
+    role = msg.get("role")
+    content = msg.get("content", "")
+    
+    if role == "user":
+        st.chat_message("user").write(content)
+    elif role == "assistant":
+        tool_calls = msg.get("tool_calls")
+        if tool_calls:
+            with st.chat_message("assistant", avatar="⚙️"):
+                st.markdown("**Generated Tool Calls:**")
+                for tc in tool_calls:
+                    func = tc.get("function", {})
+                    name = func.get("name", "unknown")
+                    args = func.get("arguments", {})
+                    args_str = _processor.format_tool_arguments(args)
+                    st.code(f"{name}({args_str})", language="python")
+                if content:
+                    st.markdown(content)
+        else:
+            st.chat_message("assistant").write(content)
+    elif role == "tool":
+        with st.chat_message("tool", avatar="🛠️"):
+            st.markdown(f"**Tool Response (`{msg.get('name', 'unknown')}`):**")
+            st.code(content, language="text")
     else:
-        st.info("No specific visualizer for this log type.")
-        st.write(data)
+        st.chat_message(role).write(content)
 
 def _render_request_details(data: Dict[str, Any]):
-    """Renders formatted request payload details."""
+    """Displays user agent parameters and historical context."""
     st.markdown("#### 🚀 User Request")
     st.markdown(f"**Target Model:** `{data.get('model', 'unknown')}`")
 
@@ -115,12 +173,12 @@ def _render_request_details(data: Dict[str, Any]):
             for tool in data['tools']:
                 st.markdown(f"- **{tool['function']['name']}**: {tool['function']['description']}")
                 
-    st.markdown("#### 💬 Conversation History")
-    for msg in data.get("messages", []):
-        st.chat_message(msg['role']).write(msg['content'])
+    with st.expander("💬 Conversation History", expanded=False):
+        for msg in data.get("messages", []):
+            _render_history_message(msg)
 
 def _render_response_details(data: Dict[str, Any]):
-    """Renders formatted response payload details."""
+    """Renders final model completion reply output structures."""
     st.markdown("#### ✨ Model Response")
     
     thinking = data.get('thinking') or (data.get('message', {}).get('thinking'))
@@ -141,7 +199,7 @@ def _render_response_details(data: Dict[str, Any]):
             st.code(tc['function']['arguments'], language="json")
 
 def _render_tool_details(data: Any):
-    """Renders formatted tool execution details."""
+    """Displays structured parallel tool execution calls."""
     st.markdown("#### 🛠️ Tool Execution")
     if isinstance(data, list):
         for call in data:
@@ -150,26 +208,41 @@ def _render_tool_details(data: Any):
     else:
         st.json(data)
 
+def _render_tool_response_details(data: Dict[str, Any]):
+    """Displays outputs and parameter bounds of completed execution results."""
+    st.markdown("#### ⚙️ Tool Execution Response")
+    st.markdown(f"**Tool Name:** `{data.get('name', 'unknown')}`")
+    
+    arguments = data.get("arguments")
+    if arguments:
+        st.markdown("**Arguments:**")
+        args_str = _processor.format_tool_arguments(arguments)
+        st.code(args_str, language="json")
+        
+    st.markdown("**Execution Output:**")
+    st.code(data.get("content", ""), language="text")
+
 def _render_error_details(data: Dict[str, Any]):
-    """Renders formatted error details."""
+    """Renders visual layout frames containing stack traces and error metrics."""
     st.error("#### ❌ System Error")
     st.write(data.get('message', 'Unknown error occurred'))
     if 'traceback' in data:
         st.code(data['traceback'], language="python")
 
 def _render_security_details(data: Dict[str, Any]):
-    """Renders formatted security analysis details."""
+    """Renders visual metric layouts representing guardrail scores."""
     st.markdown("#### 🛡️ Security Analysis")
-    score = data.get("risk_score", 0.0)
-    target = data.get("target", "unknown")
-    summary = data.get("summary", "No details")
+    score_percent, summary, badge_color = _processor.get_security_status(data)
     
-    color = "red" if score > 0.8 else "orange" if score > 0.4 else "green"
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("Risk Score", f"{score_percent:.1f}%")
+    with col2:
+        st.markdown(f"**Status**\n### :{badge_color}[{summary}]")
+        
+    st.markdown(f"**Target:** `{data.get('target', 'unknown')}`")
     
-    st.metric("Risk Score", f"{score*100:.1f}%", delta=summary, delta_color="inverse")
-    st.markdown(f"**Target:** `{target}`")
-    
-    if score > 0.5:
+    if score_percent > 50.0:
         st.warning("⚠️ High risk of prompt injection detected in this segment.")
     else:
         st.success("✅ Content passed the Bayesian security filter.")

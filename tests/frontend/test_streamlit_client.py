@@ -1,12 +1,12 @@
 import pytest
 import respx
 from httpx import Response
+import streamlit_app.api.client as client
 from streamlit_app.api.client import fetch_models, fetch_tools, send_chat_message
-from streamlit_app.config import BACKEND_URL
 
 def test_fetch_models_success():
     with respx.mock:
-        respx.get(f"{BACKEND_URL}/models").mock(
+        respx.get(f"{client.BACKEND_URL}/models").mock(
             return_value=Response(200, json=[{"name": "gemma"}])
         )
         models = fetch_models()
@@ -15,7 +15,7 @@ def test_fetch_models_success():
 
 def test_fetch_models_error():
     with respx.mock:
-        respx.get(f"{BACKEND_URL}/models").mock(
+        respx.get(f"{client.BACKEND_URL}/models").mock(
             side_effect=Exception("Connection refused")
         )
         models = fetch_models()
@@ -23,7 +23,7 @@ def test_fetch_models_error():
 
 def test_fetch_tools_success():
     with respx.mock:
-        respx.get(f"{BACKEND_URL}/tools").mock(
+        respx.get(f"{client.BACKEND_URL}/tools").mock(
             return_value=Response(200, json={"mock_tool": {}})
         )
         tools = fetch_tools()
@@ -31,7 +31,7 @@ def test_fetch_tools_success():
 
 def test_fetch_tools_error():
     with respx.mock:
-        respx.get(f"{BACKEND_URL}/tools").mock(
+        respx.get(f"{client.BACKEND_URL}/tools").mock(
             side_effect=Exception("Connection refused")
         )
         tools = fetch_tools()
@@ -40,7 +40,7 @@ def test_fetch_tools_error():
 @pytest.mark.asyncio
 async def test_send_chat_message():
     with respx.mock:
-        respx.post(f"{BACKEND_URL}/chat").mock(
+        respx.post(f"{client.BACKEND_URL}/chat").mock(
             return_value=Response(200, content="chunk1")
         )
         payload = {"model": "gemma"}

@@ -1,98 +1,129 @@
-from _pytest import cacheprovider
+"""
+Chat bubble rendering component for the Streamlit Sandbox interface.
+
+High level role: Handles Streamlit UI layouts, bubble styling, and real-time streaming displays.
+All data processing and API coordinator structures are delegated to ChatProcessor.
+"""
+
 import streamlit as st
-import httpx
-import json
-import time
 from typing import Dict, Any, List
+from streamlit_app.components.processors.logs import add_log
+from streamlit_app.components.processors.chat import ChatProcessor
+from streamlit_app.constants import AVATAR_TOOLS, ROLE_TOOLS, ROLE_ASSISTANT, BACKEND_URL
 
-from streamlit_app.config import BACKEND_URL
+# Component-level ChatProcessor Instance (Dependency Injection)
+_processor = ChatProcessor(BACKEND_URL)
 
-def add_log(log_type: str, data: Any):
-    """Adds a trace log to the session state."""
-    st.session_state.logs.append({
-        "time": time.strftime("%H:%M:%S"),
-        "type": log_type,
-        "data": data
-    })
+# ==========================================
+# Public API (Rendering Logic)
+# ==========================================
 
-def _render_message_history():
-    """Iterates through session state and renders previous messages."""
+def render_message(message: Dict[str, Any]):
+    """
+    Renders a single message bubble inside the Streamlit Sandbox container.
+
+    High level role: Delegates correct theme structures and avatar icons based on custom roles.
+
+    Arguments:
+        message (Dict[str, Any]): Message object containing 'role' and 'content'.
+
+    Returns:
+        None
+    """
+    role = message["role"]
+    content = message["content"]
+    
+    if role == ROLE_TOOLS:
+        with st.chat_message(ROLE_TOOLS, avatar=AVATAR_TOOLS):
+            st.markdown(content)
+    else:
+        with st.chat_message(role):
+            st.markdown(content)
+
+def render_message_history():
+    """
+    Iterates and restores visual message history bubbles inside the chat sandbox.
+
+    High level role: Iterates st.session_state.messages and draws bubbles in chronological sequence.
+
+    Arguments:
+        None
+
+    Returns:
+        None
+    """
     for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+        render_message(message)
 
-def _build_chat_payload(selected_model: str, system_prompt: str, selected_tool_names: List[str], available_tools: List[Dict]) -> Dict:
-    """Constructs the JSON payload for the backend /chat endpoint."""
-    tools = [t for t in available_tools if t["function"]["name"] in selected_tool_names] if available_tools else []
-    return {
-        "model": selected_model,
-        "messages": st.session_state.messages,
-        "system": system_prompt,
-        "stream": True,
-        "tools": tools if tools else None
-    }
+def render_streaming_response(processor: ChatProcessor, payload: Dict[str, Any]):
+    """
+    Executes raw HTTP response stream fetches and coordinates real-time visual updates.
 
-def process_assistant_response(selected_model: str, system_prompt: str, selected_tool_names: List[str], available_tools: List[Dict]):
-    """Main orchestrator for fetching and rendering the assistant's streaming response."""
-    with st.chat_message("assistant"):
-        # Fix ghost message bug by wrapping in a container as per official demo
-        with st.container():
-            payload = _build_chat_payload(selected_model, system_prompt, selected_tool_names, available_tools)
-            add_log("REQUEST", payload)
+    High level role: Renders parallel tool blocks and assistant messages dynamically to separate placeholders.
 
-            _execute_chat_request(payload)
-        
-        st.session_state.is_processing = False
-        st.rerun()
+    Arguments:
+        processor (ChatProcessor): Fully initialized completion processor coordinator.
+        payload (Dict[str, Any]): completions request JSON payload.
 
-def _execute_chat_request(payload: Dict):
-    """Executes the HTTP request and uses st.write_stream for the response."""
-    state = {"full_response": "", "thinking_content": ""}
+    Returns:
+        None
+    """
+    tools_container = None
+    assistant_container = None
+    tools_placeholder = None
+    assistant_placeholder = None
     
-    def response_generator():
-        try:
-            with httpx.stream("POST", f"{BACKEND_URL}/chat", json=payload, timeout=120.0) as r:
-                for line in r.iter_lines():
-                    if line:
-                        chunk = json.loads(line)
-                        if "message" in chunk:
-                            msg = chunk["message"]
-                            if "content" in msg:
-                                state["full_response"] += msg["content"]
-                                yield msg["content"]
-                            if "thinking" in msg:
-                                state["thinking_content"] += msg["thinking"]
-                            if "tool_calls" in msg:
-                                add_log("TOOL", msg["tool_calls"])
-                        if "security" in chunk:
-                            add_log("SECURITY", chunk["security"])
-                
-                add_log("RESPONSE", {"content": state["full_response"], "thinking": state["thinking_content"]})
-        except Exception as e:
-            st.error(f"Error: {e}")
-            add_log("ERROR", {"message": str(e)})
-
-    # Use native write_stream for that premium feel
+    tools_content = ""
+    assistant_content = ""
+    
     with st.spinner("Thinking..."):
-        full_response = st.write_stream(response_generator)
+        # Iterate over stream blocks yielded by ChatProcessor
+        for block_type, text in processor.stream_response(payload):
+            if block_type == ROLE_TOOLS:
+                if not tools_container:
+                    tools_container = st.chat_message(ROLE_TOOLS, avatar=AVATAR_TOOLS)
+                    tools_placeholder = tools_container.empty()
+                tools_content = text
+                if tools_placeholder:
+                    tools_placeholder.markdown(tools_content)
+            else:
+                if not assistant_container:
+                    assistant_container = st.chat_message(ROLE_ASSISTANT)
+                    assistant_placeholder = assistant_container.empty()
+                assistant_content += text
+                if assistant_placeholder:
+                    assistant_placeholder.markdown(assistant_content)
+            
+    # Append completed messages to history
+    if tools_content:
+        st.session_state.messages.append({"role": ROLE_TOOLS, "content": tools_content})
+    if assistant_content:
+        st.session_state.messages.append({"role": ROLE_ASSISTANT, "content": assistant_content})
+
+def process_assistant_response(
+    selected_model: str,
+    system_prompt: str,
+    selected_tool_names: List[str],
+    available_tools: List[Dict[str, Any]]
+):
+    """
+    Main completions trigger coordinating request payload compilation and visual rendering.
+
+    High level role: Orchestrates building request payload and streams it to Sandbox placeholders.
+
+    Arguments:
+        selected_model (str): Name of the active LLM to query.
+        system_prompt (str): Active system-level instructions.
+        selected_tool_names (List[str]): List of tool names that are enabled.
+        available_tools (List[Dict[str, Any]]): Complete configurations of all registered tools.
+
+    Returns:
+        None
+    """
+    payload = _processor.build_chat_payload(selected_model, system_prompt, selected_tool_names, available_tools)
+    add_log("REQUEST", payload)
+
+    render_streaming_response(_processor, payload)
     
-    st.session_state.messages.append({"role": "assistant", "content": full_response})
-
-def _handle_json_response(data: Dict, state: Dict):
-    """Handles a complete (non-streaming) JSON fallback response."""
-    state["full_response"] = data["message"]["content"]
-    state["thinking_content"] = data["message"].get("thinking", "")
-    add_log("RESPONSE", data)
-
-def _handle_stream_chunk(data: Dict, message_placeholder: Any, state: Dict):
-    """Processes a single NDJSON chunk and updates the UI."""
-    if "message" not in data:
-        return
-        
-    if "content" in data["message"]:
-        state["full_response"] += data["message"]["content"]
-        message_placeholder.markdown(state["full_response"] + "▌")
-    if "thinking" in data["message"]:
-        state["thinking_content"] += data["message"]["thinking"]
-    if "tool_calls" in data["message"]:
-        add_log("TOOL", data["message"]["tool_calls"])
+    st.session_state.is_processing = False
+    st.rerun()

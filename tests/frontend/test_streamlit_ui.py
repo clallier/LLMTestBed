@@ -7,12 +7,12 @@ def mocked_app():
     """Fixture that provides a mocked AppTest instance."""
     with patch("streamlit_app.components.sidebar.fetch_models") as mock_models, \
          patch("streamlit_app.components.sidebar.fetch_tools") as mock_tools, \
-         patch("streamlit_app.components.chat._execute_chat_request") as mock_exec:
+         patch("streamlit_app.components.chat.render_streaming_response") as mock_exec:
         
         mock_models.return_value = [{"name": "gemma-test"}]
         mock_tools.return_value = []
         
-        def fake_exec(payload):
+        def fake_exec(processor, payload):
             import streamlit as st
             st.session_state.messages.append({"role": "assistant", "content": "Fake response"})
             

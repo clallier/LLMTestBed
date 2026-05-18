@@ -1,6 +1,6 @@
 import httpx
 from typing import List, Dict, Any, AsyncGenerator
-from streamlit_app.config import BACKEND_URL
+from streamlit_app.constants import BACKEND_URL
 
 def fetch_models() -> List[Dict[str, Any]]:
     """

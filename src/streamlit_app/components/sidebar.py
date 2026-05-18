@@ -19,6 +19,7 @@ def render_sidebar() -> Tuple[str, str, List[str], List[Dict[str, Any]], str]:
         
         if st.button("Clear History", type="secondary", use_container_width=True):
             st.session_state.messages = []
+            st.session_state.raw_messages = []
             st.session_state.logs = []
             st.rerun()
             
@@ -30,7 +31,7 @@ def _render_model_selection() -> str:
     model_names = [m.get("name", m) if isinstance(m, dict) else m for m in models] if isinstance(models, list) else []
     
     if not model_names:
-        model_names = ["gemma4:e4b"]
+        model_names = ["No model available. Please run 'ollama serve' first."]
         
     return st.selectbox("Select Model", model_names)
 
