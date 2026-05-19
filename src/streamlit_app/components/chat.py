@@ -4,7 +4,6 @@ Chat bubble rendering component for the Streamlit Sandbox interface.
 High level role: Handles Streamlit UI layouts, bubble styling, and real-time streaming displays.
 All data processing and API coordinator structures are delegated to ChatProcessor.
 """
-
 from typing import Any, Dict, List
 
 import streamlit as st
@@ -22,6 +21,7 @@ def _get_processor() -> ChatProcessor:
 # Public API (Rendering Logic)
 # ==========================================
 
+
 def render_message(message: Dict[str, Any]):
     """
     Renders a single message bubble inside the Streamlit Sandbox container.
@@ -36,13 +36,14 @@ def render_message(message: Dict[str, Any]):
     """
     role = message["role"]
     content = message["content"]
-    
+
     if role == ROLE_TOOLS:
         with st.chat_message(ROLE_TOOLS, avatar=AVATAR_TOOLS):
             st.markdown(content)
     else:
         with st.chat_message(role):
             st.markdown(content)
+
 
 def render_message_history():
     """
@@ -59,6 +60,7 @@ def render_message_history():
     for message in st.session_state.messages:
         render_message(message)
 
+
 def _append_messages_to_history(tools_content: str, assistant_content: str):
     """Helper to append finalized assistant and tools blocks to message history."""
     if tools_content:
@@ -66,11 +68,13 @@ def _append_messages_to_history(tools_content: str, assistant_content: str):
     if assistant_content:
         st.session_state.messages.append({"role": ROLE_ASSISTANT, "content": assistant_content})
 
+
 def render_streaming_response(processor: ChatProcessor, payload: Dict[str, Any]):
     """
     Executes raw HTTP response stream fetches and coordinates real-time visual updates.
 
-    High level role: Renders parallel tool blocks and assistant messages dynamically to separate placeholders.
+    High level role: Renders parallel tool blocks and assistant messages dynamically to
+    separate placeholders.
 
     Arguments:
         processor (ChatProcessor): Fully initialized completion processor coordinator.
@@ -82,7 +86,7 @@ def render_streaming_response(processor: ChatProcessor, payload: Dict[str, Any])
     tools_container, assistant_container = None, None
     tools_placeholder, assistant_placeholder = None, None
     tools_content, assistant_content = "", ""
-    
+
     with st.spinner("Thinking..."):
         for block_type, text in processor.stream_response(payload):
             if block_type == ROLE_TOOLS:
@@ -99,8 +103,9 @@ def render_streaming_response(processor: ChatProcessor, payload: Dict[str, Any])
                 assistant_content += text
                 if assistant_placeholder:
                     assistant_placeholder.markdown(assistant_content)
-            
+
     _append_messages_to_history(tools_content, assistant_content)
+
 
 def process_assistant_response(
     selected_model: str,
@@ -123,10 +128,15 @@ def process_assistant_response(
         None
     """
     processor = _get_processor()
-    payload = processor.build_chat_payload(selected_model, system_prompt, selected_tool_names, available_tools)
+    payload = processor.build_chat_payload(
+        selected_model,
+        system_prompt,
+        selected_tool_names,
+        available_tools
+    )
     add_log("REQUEST", payload)
 
     render_streaming_response(processor, payload)
-    
+
     st.session_state.is_processing = False
     st.rerun()

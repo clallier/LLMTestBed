@@ -25,12 +25,12 @@ _DEFAULT_PORT: int = 8000
 app = FastAPI(title="LLMTestbed API")
 
 @app.exception_handler(Exception)
-async def global_exception_handler(request, exc):
+async def global_exception_handler(_request, exc):
     """
     Catches any unhandled exceptions across the application.
     Logs the stack trace and returns a structured 500 JSON response.
     """
-    logger.error(f"GLOBAL ERROR: {exc}")
+    logger.error("GLOBAL ERROR: %s", exc)
     logger.error(traceback.format_exc())
     return JSONResponse(
         status_code=500,
@@ -56,4 +56,10 @@ if __name__ == "__main__":
     import uvicorn
     # Watch the src directory specifically
     watch_dir = os.path.dirname(os.path.abspath(__file__))
-    uvicorn.run("main:app", host=_DEFAULT_HOST, port=_DEFAULT_PORT, reload=True, reload_dirs=[watch_dir])
+    uvicorn.run(
+        "main:app",
+        host=_DEFAULT_HOST,
+        port=_DEFAULT_PORT,
+        reload=True,
+        reload_dirs=[watch_dir]
+    )

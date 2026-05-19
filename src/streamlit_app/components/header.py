@@ -1,3 +1,8 @@
+"""
+Streamlit Premium Header Navigation Component.
+
+High level role: Renders segmented control navigation tabs.
+"""
 import streamlit as st
 
 
@@ -6,7 +11,7 @@ def render_top_nav():
     Renders the page header with navigation and branding.
     Returns the currently selected view.
     """
-    with st.container():        
+    with st.container():
         # Segmented control for premium navigation feel
         view = st.segmented_control(
             "Navigation",
@@ -16,8 +21,9 @@ def render_top_nav():
             label_visibility="collapsed",
             key="top_nav"
         )
-        
+
     return view
+
 
 def close_top_nav():
     """Closes the content wrapper div opened by render_top_nav."""

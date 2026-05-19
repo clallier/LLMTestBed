@@ -1,3 +1,8 @@
+"""
+Streamlit Multi-Agent Security Sandbox App.
+
+High level role: Entry point for the frontend Streamlit dashboard, layouts, and routes.
+"""
 import streamlit as st
 
 from streamlit_app.components.chat import process_assistant_response, render_message_history
@@ -17,11 +22,17 @@ st.set_page_config(
 # Apply Styles from folder
 apply_styles()
 
-# 1. Render Fixed Top Navigation 
+# 1. Render Fixed Top Navigation
 view = render_top_nav()
 
 # 2. Render Sidebar (Model configs, tools, etc.)
-selected_model, system_prompt, selected_tool_names, available_tools, selected_attack = render_sidebar()
+(
+    selected_model,
+    system_prompt,
+    selected_tool_names,
+    available_tools,
+    selected_attack
+) = render_sidebar()
 
 # 3. Initialize Session State
 if "messages" not in st.session_state:
@@ -36,17 +47,17 @@ if "is_processing" not in st.session_state:
 # 4. Main Application Logic
 if view == "Sandbox":
     st.header("Agent Attack Sandbox")
-    
+
     if selected_attack != "None":
         st.info(f"Attack Selected: {selected_attack}")
         if st.button("Inject Payload"):
             payload_content = ATTACK_TEMPLATES[selected_attack]
             st.session_state.messages.append({
-                "role": "user", 
+                "role": "user",
                 "content": payload_content
             })
             st.session_state.raw_messages.append({
-                "role": "user", 
+                "role": "user",
                 "content": payload_content
             })
             st.session_state.is_processing = True
@@ -55,8 +66,18 @@ if view == "Sandbox":
     # Render History and handle Assistant
     render_message_history()
 
-    if st.session_state.is_processing and st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
-        process_assistant_response(selected_model, system_prompt, selected_tool_names, available_tools)
+    is_user_turn = (
+        st.session_state.is_processing
+        and st.session_state.messages
+        and st.session_state.messages[-1]["role"] == "user"
+    )
+    if is_user_turn:
+        process_assistant_response(
+            selected_model,
+            system_prompt,
+            selected_tool_names,
+            available_tools
+        )
 
     # ROOT LEVEL INPUT - This ensures it sticks to the bottom of the viewport
     if prompt := st.chat_input("Type here and press Enter to attack..."):

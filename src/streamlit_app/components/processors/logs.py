@@ -10,7 +10,7 @@ from typing import Any
 import streamlit as st
 
 
-class LogsProcessor:
+class LogsProcessor:  # pylint: disable=too-few-public-methods
     """
     Manages session-state trace logs and handles new trace registrations.
 

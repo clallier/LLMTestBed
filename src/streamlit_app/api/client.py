@@ -17,6 +17,7 @@ def __getattr__(name: str) -> Any:
         return get_backend_url()
     raise AttributeError(f"module {__name__} has no attribute {name}")
 
+
 def fetch_models() -> List[Dict[str, Any]]:
     """
     Fetches the list of available models from the backend.
@@ -30,9 +31,10 @@ def fetch_models() -> List[Dict[str, Any]]:
         resp = httpx.get(f"{get_backend_url()}/models", timeout=10.0)
         resp.raise_for_status()
         return resp.json()
-    except Exception as e:
+    except httpx.HTTPError as e:
         print(f"Error fetching models: {e}")
         return []
+
 
 def fetch_tools() -> List[Dict[str, Any]]:
     """
@@ -47,9 +49,10 @@ def fetch_tools() -> List[Dict[str, Any]]:
         resp = httpx.get(f"{get_backend_url()}/tools", timeout=10.0)
         resp.raise_for_status()
         return resp.json()
-    except Exception as e:
+    except httpx.HTTPError as e:
         print(f"Error fetching tools: {e}")
         return []
+
 
 async def send_chat_message(payload: Dict[str, Any]) -> AsyncGenerator[httpx.Response, None]:
     """
@@ -59,7 +62,7 @@ async def send_chat_message(payload: Dict[str, Any]) -> AsyncGenerator[httpx.Res
 
     Args:
         payload (Dict[str, Any]): The chat request payload.
-        
+
     Yields:
         httpx.Response: The HTTPX streaming response context manager.
     """

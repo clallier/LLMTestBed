@@ -1,7 +1,7 @@
 """
 Observability and log parsing handler for Streamlit trace visualizations.
 
-High level role: Manages session index selections, parses activity traces, 
+High level role: Manages session index selections, parses activity traces,
 and formats safety status summaries and JSON export structures.
 """
 
@@ -76,7 +76,10 @@ class ObservabilityProcessor:
         }
         return json.dumps(payload, indent=self._JSON_INDENT)
 
-    def get_security_status(self, security_data: Dict[str, Any]) -> Tuple[float, str, str]:
+    def get_security_status(
+        self,
+        security_data: Dict[str, Any]
+    ) -> Tuple[float, str, str]:
         """
         Evaluates risk telemetry scores and generates matching UI status variables.
 
@@ -90,7 +93,7 @@ class ObservabilityProcessor:
         """
         score = security_data.get("risk_score", 0.0)
         summary = security_data.get("summary", "No details")
-        
+
         summary_clean = summary.lower()
         if "safe" in summary_clean:
             badge_color = "green"
@@ -98,7 +101,7 @@ class ObservabilityProcessor:
             badge_color = "red"
         else:
             badge_color = "orange"
-            
+
         return score * 100.0, summary, badge_color
 
     def format_tool_arguments(self, arguments: Any) -> str:

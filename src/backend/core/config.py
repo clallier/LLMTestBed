@@ -1,3 +1,8 @@
+"""
+Configuration module for the backend API application.
+
+High level role: Loads environment variables and configures backend constants.
+"""
 import os
 
 from dotenv import load_dotenv

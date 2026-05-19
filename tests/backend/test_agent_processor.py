@@ -1,13 +1,14 @@
-import pytest
 import json
-from typing import List, Dict, Any, AsyncGenerator
+from typing import Any, AsyncGenerator, Dict
+
+import pytest
+
 from backend.core.agent_processor import AgentStreamProcessor
-from backend.schemas.chat import ChatRequest, ChatMessage
 from backend.core.ollama_client import OllamaClient
+from backend.schemas.chat import ChatMessage, ChatRequest
 from .mocks.ollama_client import MockOllamaClient
 
 
-@pytest.mark.asyncio
 class TestAgentStreamProcessor:
     """
     Unit tests for the AgentStreamProcessor class covering normal and edge cases.
@@ -16,6 +17,7 @@ class TestAgentStreamProcessor:
     and parallel tool executions.
     """
 
+    @pytest.mark.asyncio
     async def test_nominal_no_tools(self):
         """
         Verifies nominal stream processing when the agent doesn't invoke any tools.
@@ -30,26 +32,26 @@ class TestAgentStreamProcessor:
         ]
         mock_client = MockOllamaClient(mock_chunks)
         processor = AgentStreamProcessor(client=mock_client)
-        
+
         request = ChatRequest(
             model="test-model",
             messages=[ChatMessage(role="user", content="hi")]
         )
-        
+
         # Read the entire processed stream
         output_chunks = []
         async for chunk in processor.process_stream(request, []):
             output_chunks.append(json.loads(chunk.strip()))
-            
+
         # We expect:
         # 1. The initial user prompt security assessment packet
         # 2. Content chunks
         assert len(output_chunks) >= 3
-        
+
         # Check initial security analysis
         assert "security" in output_chunks[0]
         assert output_chunks[0]["security"]["target"] == "user_prompt"
-        
+
         # Check aggregated assistant content
         content = "".join(
             c["message"]["content"]
@@ -58,6 +60,7 @@ class TestAgentStreamProcessor:
         )
         assert content == "Hello world!"
 
+    @pytest.mark.asyncio
     async def test_parallel_tools(self):
         """
         Verifies nominal stream processing when the agent triggers parallel tool calls.
@@ -91,12 +94,12 @@ class TestAgentStreamProcessor:
                 }
             })
         ]
-        
+
         # Phase 2 chunks: Final response after receiving tool results
         final_chunks = [
             json.dumps({"message": {"role": "assistant", "content": "Tool results received."}})
         ]
-        
+
         # A mock client that handles the recursive chat stream calls:
         # First call gets parallel tool calls; second recursive call gets final assistant text.
         class RecursiveMockClient(OllamaClient):
@@ -111,21 +114,21 @@ class TestAgentStreamProcessor:
 
         mock_client = RecursiveMockClient()
         processor = AgentStreamProcessor(client=mock_client)
-        
+
         request = ChatRequest(
             model="test-model",
             messages=[ChatMessage(role="user", content="run sensitive diagnostics")]
         )
-        
+
         output_chunks = []
         messages_history = [msg.model_dump() for msg in request.messages]
         async for chunk in processor.process_stream(request, messages_history):
             output_chunks.append(json.loads(chunk.strip()))
-            
+
         # Verify that parallel tools were simulated, output logs yielded, and final text received
         log_types = []
         tool_response_names = set()
-        
+
         for c in output_chunks:
             if "security" in c:
                 log_types.append("SECURITY")
@@ -134,7 +137,7 @@ class TestAgentStreamProcessor:
                 tool_response_names.add(c["tool_response"]["name"])
             elif "message" in c:
                 log_types.append("MESSAGE")
-                
+
         # We expect:
         # - SECURITY (initial user prompt risk check)
         # - MESSAGE (the tool calls payload)
@@ -147,7 +150,7 @@ class TestAgentStreamProcessor:
         assert "TOOL_RESPONSE" in log_types
         assert "read_sensitive_file" in tool_response_names
         assert "execute_command" in tool_response_names
-        
+
         # Confirm that tool outputs are correctly simulated in tool responses
         tool_responses = [c["tool_response"] for c in output_chunks if "tool_response" in c]
         for tr in tool_responses:
@@ -156,16 +159,16 @@ class TestAgentStreamProcessor:
             elif tr["name"] == "execute_command":
                 assert tr["content"] == "sandbox_agent_user"
 
-    async def test_edge_case_destructive_command_blocking(self):
+    def test_edge_case_destructive_command_blocking(self):
         """
         Verifies that destructive shell commands like 'rm' or 'mv' are securely blocked.
 
         Examples:
             >>> test = TestAgentStreamProcessor()
-            >>> await test.test_edge_case_destructive_command_blocking()
+            >>> test.test_edge_case_destructive_command_blocking()
         """
         processor = AgentStreamProcessor()
-        
+
         # Invoke execute_command with a destructive command
         res = processor.run_tool({
             "function": {
@@ -173,9 +176,10 @@ class TestAgentStreamProcessor:
                 "arguments": {"command": "rm -rf /"}
             }
         })
-        
+
         assert "Error: Permission denied" in res["content"]
 
+    @pytest.mark.asyncio
     async def test_edge_case_malformed_chunk_handling(self):
         """
         Verifies that malformed JSON chunks are gracefully ignored without throwing exceptions.
@@ -190,16 +194,16 @@ class TestAgentStreamProcessor:
         ]
         mock_client = MockOllamaClient(mock_chunks)
         processor = AgentStreamProcessor(client=mock_client)
-        
+
         request = ChatRequest(
             model="test-model",
             messages=[ChatMessage(role="user", content="hi")]
         )
-        
+
         output_chunks = []
         async for chunk in processor.process_stream(request, []):
             output_chunks.append(json.loads(chunk.strip()))
-            
+
         # The malformed chunk should be skipped, and the nominal chunk should render correctly
         content = "".join(
             c["message"]["content"]
@@ -208,12 +212,12 @@ class TestAgentStreamProcessor:
         )
         assert content == "Passed!"
 
-    async def test_tool_response_name_field(self):
+    def test_tool_response_name_field(self):
         """
         Verifies that tool responses contain the required 'name' field in compliance with standard protocols.
 
         High level role: Asserts presence of required API protocol fields to prevent multi-step reasoning failures.
-        
+
         Examples:
             >>> test = TestAgentStreamProcessor()
             >>> test.test_tool_response_name_field()
@@ -225,12 +229,12 @@ class TestAgentStreamProcessor:
                 "arguments": {"filename": ".env"}
             }
         })
-        
+
         assert res["role"] == "tool"
         assert res["name"] == "read_sensitive_file"
         assert "SECRET_DATABASE_URL" in res["content"]
 
-    async def test_tool_call_id_propagation_standard(self):
+    def test_tool_call_id_propagation_standard(self):
         """
         Verifies that tool_call_id is successfully propagated during nominal tool executions.
         """
@@ -242,7 +246,7 @@ class TestAgentStreamProcessor:
                 "arguments": {"filename": ".env"}
             }
         })
-        
+
         assert res["role"] == "tool"
         assert res["name"] == "read_sensitive_file"
         assert res["tool_call_id"] == "call_nom_123"
@@ -254,12 +258,12 @@ class TestAgentStreamProcessor:
         Verifies that tool_call_id is successfully propagated inside exception payloads.
         """
         processor = AgentStreamProcessor()
-        
+
         # Stub run_tool to throw an exception
         def crash_run_tool(tool_call):
             raise RuntimeError("Simulated crash")
         processor.run_tool = crash_run_tool
-        
+
         tool_calls = [{
             "id": "call_err_123",
             "function": {
@@ -267,13 +271,14 @@ class TestAgentStreamProcessor:
                 "arguments": {"command": "ls"}
             }
         }]
-        
+
         messages = []
         chunks = []
         async for chunk in processor._execute_tools_and_stream_results(tool_calls, messages):
             chunks.append(json.loads(chunk.strip()))
-            
+
         assert len(messages) == 1
         assert messages[0]["role"] == "tool"
         assert messages[0]["tool_call_id"] == "call_err_123"
         assert "Simulated crash" in messages[0]["content"]
+
