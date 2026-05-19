@@ -6,7 +6,7 @@ and formats safety status summaries and JSON export structures.
 """
 
 import json
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, List, Tuple
 
 import streamlit as st
 
@@ -57,29 +57,22 @@ class ObservabilityProcessor:
         st.session_state.selected_log_index = index
         st.rerun()
 
-    def format_export_payload(self, log: Dict[str, Any]) -> str:
+    def format_export_payload(self, raw_messages: List[Dict[str, Any]]) -> str:
         """
-        Compiles and serializes trace log details into a printable JSON export string.
+        Compiles and serializes the complete conversation history into a printable JSON export string.
 
-        High level role: Prepares clean diagnostic export deliverables.
+        High level role: Prepares clean diagnostic export deliverables containing all turns.
 
         Arguments:
-            log (Dict[str, Any]): Telemetry trace log containing 'time', 'type', and 'data'.
+            raw_messages (List[Dict[str, Any]]): The raw message turns containing tool calls and content.
 
         Returns:
             str: Prettified JSON payload string.
         """
-        payload = {
-            "timestamp": log.get("time", ""),
-            "type": log.get("type", ""),
-            "data": log.get("data", {})
-        }
+        payload = {"conversation_history": raw_messages}
         return json.dumps(payload, indent=self._JSON_INDENT)
 
-    def get_security_status(
-        self,
-        security_data: Dict[str, Any]
-    ) -> Tuple[float, str, str]:
+    def get_security_status(self, security_data: Dict[str, Any]) -> Tuple[float, str, str]:
         """
         Evaluates risk telemetry scores and generates matching UI status variables.
 

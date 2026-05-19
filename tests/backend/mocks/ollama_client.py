@@ -1,5 +1,7 @@
+from typing import Any, AsyncGenerator, Dict, List
+
 from backend.core.ollama_client import OllamaClient
-from typing import List, Dict, Any, AsyncGenerator
+
 
 class MockOllamaClient(OllamaClient):
     """
@@ -8,6 +10,7 @@ class MockOllamaClient(OllamaClient):
     High level role: Simulates the async chat stream API of Ollama Client.
     It inherits from OllamaClient to be fully compatible with static type checkers.
     """
+
     def __init__(self, chunks: List[str]):
         """
         Initializes the MockOllamaClient with canned stream chunks.

@@ -6,6 +6,7 @@ import pytest
 from backend.core.agent_processor import AgentStreamProcessor
 from backend.core.ollama_client import OllamaClient
 from backend.schemas.chat import ChatMessage, ChatRequest
+
 from .mocks.ollama_client import MockOllamaClient
 
 
@@ -28,15 +29,12 @@ class TestAgentStreamProcessor:
         """
         mock_chunks = [
             json.dumps({"message": {"role": "assistant", "content": "Hello "}}),
-            json.dumps({"message": {"role": "assistant", "content": "world!"}})
+            json.dumps({"message": {"role": "assistant", "content": "world!"}}),
         ]
         mock_client = MockOllamaClient(mock_chunks)
         processor = AgentStreamProcessor(client=mock_client)
 
-        request = ChatRequest(
-            model="test-model",
-            messages=[ChatMessage(role="user", content="hi")]
-        )
+        request = ChatRequest(model="test-model", messages=[ChatMessage(role="user", content="hi")])
 
         # Read the entire processed stream
         output_chunks = []
@@ -71,28 +69,30 @@ class TestAgentStreamProcessor:
         """
         # Phase 1 chunks: The agent generated 2 tool calls
         tool_call_chunks = [
-            json.dumps({
-                "message": {
-                    "role": "assistant",
-                    "content": "",
-                    "tool_calls": [
-                        {
-                            "type": "function",
-                            "function": {
-                                "name": "read_sensitive_file",
-                                "arguments": {"filename": ".env"}
-                            }
-                        },
-                        {
-                            "type": "function",
-                            "function": {
-                                "name": "execute_command",
-                                "arguments": {"command": "whoami"}
-                            }
-                        }
-                    ]
+            json.dumps(
+                {
+                    "message": {
+                        "role": "assistant",
+                        "content": "",
+                        "tool_calls": [
+                            {
+                                "type": "function",
+                                "function": {
+                                    "name": "read_sensitive_file",
+                                    "arguments": {"filename": ".env"},
+                                },
+                            },
+                            {
+                                "type": "function",
+                                "function": {
+                                    "name": "execute_command",
+                                    "arguments": {"command": "whoami"},
+                                },
+                            },
+                        ],
+                    }
                 }
-            })
+            )
         ]
 
         # Phase 2 chunks: Final response after receiving tool results
@@ -106,6 +106,7 @@ class TestAgentStreamProcessor:
             def __init__(self):
                 super().__init__()
                 self.call_count = 0
+
             async def chat_stream(self, payload: Dict[str, Any]) -> AsyncGenerator[str, None]:
                 self.call_count += 1
                 chunks = tool_call_chunks if self.call_count == 1 else final_chunks
@@ -117,7 +118,7 @@ class TestAgentStreamProcessor:
 
         request = ChatRequest(
             model="test-model",
-            messages=[ChatMessage(role="user", content="run sensitive diagnostics")]
+            messages=[ChatMessage(role="user", content="run sensitive diagnostics")],
         )
 
         output_chunks = []
@@ -170,12 +171,9 @@ class TestAgentStreamProcessor:
         processor = AgentStreamProcessor()
 
         # Invoke execute_command with a destructive command
-        res = processor.run_tool({
-            "function": {
-                "name": "execute_command",
-                "arguments": {"command": "rm -rf /"}
-            }
-        })
+        res = processor.run_tool(
+            {"function": {"name": "execute_command", "arguments": {"command": "rm -rf /"}}}
+        )
 
         assert "Error: Permission denied" in res["content"]
 
@@ -190,15 +188,12 @@ class TestAgentStreamProcessor:
         """
         mock_chunks = [
             "NOT VALID JSON",
-            json.dumps({"message": {"role": "assistant", "content": "Passed!"}})
+            json.dumps({"message": {"role": "assistant", "content": "Passed!"}}),
         ]
         mock_client = MockOllamaClient(mock_chunks)
         processor = AgentStreamProcessor(client=mock_client)
 
-        request = ChatRequest(
-            model="test-model",
-            messages=[ChatMessage(role="user", content="hi")]
-        )
+        request = ChatRequest(model="test-model", messages=[ChatMessage(role="user", content="hi")])
 
         output_chunks = []
         async for chunk in processor.process_stream(request, []):
@@ -223,12 +218,9 @@ class TestAgentStreamProcessor:
             >>> test.test_tool_response_name_field()
         """
         processor = AgentStreamProcessor()
-        res = processor.run_tool({
-            "function": {
-                "name": "read_sensitive_file",
-                "arguments": {"filename": ".env"}
-            }
-        })
+        res = processor.run_tool(
+            {"function": {"name": "read_sensitive_file", "arguments": {"filename": ".env"}}}
+        )
 
         assert res["role"] == "tool"
         assert res["name"] == "read_sensitive_file"
@@ -239,13 +231,12 @@ class TestAgentStreamProcessor:
         Verifies that tool_call_id is successfully propagated during nominal tool executions.
         """
         processor = AgentStreamProcessor()
-        res = processor.run_tool({
-            "id": "call_nom_123",
-            "function": {
-                "name": "read_sensitive_file",
-                "arguments": {"filename": ".env"}
+        res = processor.run_tool(
+            {
+                "id": "call_nom_123",
+                "function": {"name": "read_sensitive_file", "arguments": {"filename": ".env"}},
             }
-        })
+        )
 
         assert res["role"] == "tool"
         assert res["name"] == "read_sensitive_file"
@@ -262,15 +253,15 @@ class TestAgentStreamProcessor:
         # Stub run_tool to throw an exception
         def crash_run_tool(tool_call):
             raise RuntimeError("Simulated crash")
+
         processor.run_tool = crash_run_tool
 
-        tool_calls = [{
-            "id": "call_err_123",
-            "function": {
-                "name": "execute_command",
-                "arguments": {"command": "ls"}
+        tool_calls = [
+            {
+                "id": "call_err_123",
+                "function": {"name": "execute_command", "arguments": {"command": "ls"}},
             }
-        }]
+        ]
 
         messages = []
         chunks = []
@@ -281,4 +272,3 @@ class TestAgentStreamProcessor:
         assert messages[0]["role"] == "tool"
         assert messages[0]["tool_call_id"] == "call_err_123"
         assert "Simulated crash" in messages[0]["content"]
-

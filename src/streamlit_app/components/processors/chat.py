@@ -45,7 +45,7 @@ class ChatProcessor:
         selected_model: str,
         system_prompt: str,
         selected_tool_names: List[str],
-        available_tools: List[Dict[str, Any]]
+        available_tools: List[Dict[str, Any]],
     ) -> Dict[str, Any]:
         """
         Constructs the JSON payload for the backend /chat completion endpoint.
@@ -62,23 +62,21 @@ class ChatProcessor:
         Returns:
             Dict[str, Any]: Fully formatted request payload.
         """
-        tools = [
-            t for t in available_tools
-            if t["function"]["name"] in selected_tool_names
-        ] if available_tools else []
+        tools = (
+            [t for t in available_tools if t["function"]["name"] in selected_tool_names]
+            if available_tools
+            else []
+        )
 
         return {
             "model": selected_model,
             "messages": [msg.copy() for msg in st.session_state.raw_messages],
             "system": system_prompt,
             "stream": True,
-            "tools": tools if tools else None
+            "tools": tools if tools else None,
         }
 
-    def stream_response(
-        self,
-        payload: Dict[str, Any]
-    ) -> Generator[Tuple[str, str], None, None]:
+    def stream_response(self, payload: Dict[str, Any]) -> Generator[Tuple[str, str], None, None]:
         """
         HTTP streaming generator fetching chunks from the backend.
 
@@ -94,15 +92,12 @@ class ChatProcessor:
             "full_response": "",
             "thinking_content": "",
             "assistant_content": "",
-            "tool_runs": {}
+            "tool_runs": {},
         }
 
         try:
             with httpx.stream(
-                "POST",
-                f"{self.backend_url}/chat",
-                json=payload,
-                timeout=self._TIMEOUT_SECONDS
+                "POST", f"{self.backend_url}/chat", json=payload, timeout=self._TIMEOUT_SECONDS
             ) as r:
                 yield from self._consume_http_stream(r, state)
 
@@ -117,9 +112,7 @@ class ChatProcessor:
     # ==========================================
 
     def _consume_http_stream(
-        self,
-        r: httpx.Response,
-        state: Dict[str, Any]
+        self, r: httpx.Response, state: Dict[str, Any]
     ) -> Generator[Tuple[str, str], None, None]:
         """Iterates over the lines of the HTTP stream, updates state, and yields blocks."""
         for line in r.iter_lines():
@@ -144,9 +137,9 @@ class ChatProcessor:
             str: "tools" or "assistant".
         """
         is_tool = (
-            "message" in chunk and
-            "tool_calls" in chunk["message"] and
-            chunk["message"]["tool_calls"]
+            "message" in chunk
+            and "tool_calls" in chunk["message"]
+            and chunk["message"]["tool_calls"]
         )
         if is_tool or "tool_response" in chunk:
             return "tools"
@@ -179,34 +172,30 @@ class ChatProcessor:
             None
         """
         if state["assistant_content"]:
-            st.session_state.raw_messages.append({
-                "role": "assistant",
-                "content": state["assistant_content"]
-            })
+            st.session_state.raw_messages.append(
+                {"role": "assistant", "content": state["assistant_content"]}
+            )
 
         clean_content = self._get_clean_content(state)
         add_log("RESPONSE", {"content": clean_content, "thinking": state["thinking_content"]})
 
     def _record_raw_history(self, chunk: Dict[str, Any]):
         """Records raw messages dynamically to raw_messages to keep protocols intact."""
-        is_tool_call = (
-            "message" in chunk and
-            "tool_calls" in chunk["message"] and
-            chunk["message"]["tool_calls"]
-        )
-        if is_tool_call:
-            st.session_state.raw_messages.append({
-                "role": "assistant",
-                "content": "",
-                "tool_calls": chunk["message"]["tool_calls"]
-            })
+        is_tool = "message" in chunk and chunk["message"].get("tool_calls")
+        if is_tool:
+            new_c = chunk["message"]["tool_calls"]
+            hist = st.session_state.raw_messages
+            if hist and hist[-1].get("role") == "assistant" and "tool_calls" in hist[-1]:
+                ids = {tc.get("id") for tc in hist[-1]["tool_calls"] if tc.get("id")}
+                hist[-1]["tool_calls"].extend([tc for tc in new_c if tc.get("id") not in ids])
+            else:
+                hist.append({"role": "assistant", "content": "", "tool_calls": list(new_c)})
         elif "tool_response" in chunk:
             tr = chunk["tool_response"]
-            st.session_state.raw_messages.append({
-                "role": "tool",
-                "name": tr["name"],
-                "content": tr["content"]
-            })
+            msg = {"role": "tool", "name": tr["name"], "content": tr["content"]}
+            if "id" in tr:
+                msg["tool_call_id"] = tr["id"]
+            st.session_state.raw_messages.append(msg)
 
     def _generate_tools_markdown(self, tool_runs: Dict[str, Any]) -> str:
         """Generates markdown representation of parallel tool calls and responses."""
@@ -215,22 +204,18 @@ class ChatProcessor:
             name = run["name"]
             content = run["content"]
             args = run["arguments"]
-            is_dict = isinstance(args, dict)
-            args_str = json.dumps(args, indent=self._JSON_INDENT) if is_dict else str(args)
+            args_str = (
+                json.dumps(args, indent=self._JSON_INDENT) if isinstance(args, dict) else str(args)
+            )
 
-            block = [
-                f"🛠️ **[Tool Call] {name}**",
-                "**Arguments:**",
-                f"```json\n{args_str}\n```"
-            ]
+            block = [f"🛠️ **[Tool Call] {name}**", "**Arguments:**", f"```json\n{args_str}\n```"]
 
-            if content is not None:
-                block.extend([f"⚙️ **[Tool Response] {name}**", f"```\n{content}\n```"])
-            else:
-                block.extend([
-                    f"⚙️ **[Tool Response] {name}**",
-                    "*⌛ Executing tool in parallel...*"
-                ])
+            resp_val = (
+                f"```\n{content}\n```"
+                if content is not None
+                else "*⌛ Executing tool in parallel...*"
+            )
+            block.extend([f"⚙️ **[Tool Response] {name}**", resp_val])
 
             blocks.append("\n\n".join(block))
 
@@ -269,9 +254,7 @@ class ChatProcessor:
         return None
 
     def _process_tool_response_chunk(
-        self,
-        chunk: Dict[str, Any],
-        state: Dict[str, Any]
+        self, chunk: Dict[str, Any], state: Dict[str, Any]
     ) -> Optional[str]:
         """Maps executing tool responses to previously pre-registered tool calls."""
         tr = chunk["tool_response"]
@@ -287,7 +270,7 @@ class ChatProcessor:
             state["tool_runs"][tr_id] = {
                 "name": tr["name"],
                 "arguments": {},
-                "content": tr["content"]
+                "content": tr["content"],
             }
 
         block = self._generate_tools_markdown(state["tool_runs"])
@@ -309,7 +292,7 @@ class ChatProcessor:
                 st_run = {
                     "name": tc["function"]["name"],
                     "arguments": tc["function"]["arguments"],
-                    "content": None
+                    "content": None,
                 }
                 state["tool_runs"][tc_id] = st_run
 

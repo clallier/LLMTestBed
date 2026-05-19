@@ -166,18 +166,19 @@ def test_observability_conversation_history_rendering():
 
 
 def test_observability_processor_export():
-    """Verifies that format_export_payload serializes keys and pretty-prints JSON."""
+    """Verifies that format_export_payload serializes message history lists correctly."""
     from streamlit_app.components.processors.observability import ObservabilityProcessor
 
     proc = ObservabilityProcessor()
-    log = {"time": "10:15:00", "type": "TEST", "data": {"key": "val"}}
+    messages = [{"role": "user", "content": "hello"}]
 
-    export_str = proc.format_export_payload(log)
+    export_str = proc.format_export_payload(messages)
     parsed = json.loads(export_str)
 
-    assert parsed["timestamp"] == "10:15:00"
-    assert parsed["type"] == "TEST"
-    assert parsed["data"]["key"] == "val"
+    assert "conversation_history" in parsed
+    assert len(parsed["conversation_history"]) == 1
+    assert parsed["conversation_history"][0]["role"] == "user"
+    assert parsed["conversation_history"][0]["content"] == "hello"
 
 
 def test_observability_processor_security_status():

@@ -172,7 +172,8 @@ class AgentStreamProcessor:
                 yield self._create_tool_response_payload(
                     tc["function"]["name"],
                     tc["function"]["arguments"],
-                    tool_res["content"]
+                    tool_res["content"],
+                    tc.get("id")
                 )
                 yield self._create_tool_security_payload(
                     tc["function"]["name"],
@@ -267,7 +268,13 @@ class AgentStreamProcessor:
                 tool_res["tool_call_id"] = tc_id
         return tool_res
 
-    def _create_tool_response_payload(self, name: str, args: Any, content: str) -> str:
+    def _create_tool_response_payload(
+        self,
+        name: str,
+        args: Any,
+        content: str,
+        tool_call_id: Optional[str] = None
+    ) -> str:
         """
         Helper to create a tool response payload JSON string.
 
@@ -275,17 +282,19 @@ class AgentStreamProcessor:
             name (str): The name of the tool.
             args (Any): The tools arguments.
             content (str): The execution text content.
+            tool_call_id (Optional[str]): The corresponding tool call ID.
 
         Returns:
             str: JSON string ready for output streaming.
         """
-        return json.dumps({
-            "tool_response": {
-                "name": name,
-                "arguments": args,
-                "content": content
-            }
-        }) + "\n"
+        tr = {
+            "name": name,
+            "arguments": args,
+            "content": content,
+        }
+        if tool_call_id:
+            tr["id"] = tool_call_id
+        return json.dumps({"tool_response": tr}) + "\n"
 
     def _create_tool_security_payload(self, name: str, content: str) -> str:
         """

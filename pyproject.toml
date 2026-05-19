@@ -60,4 +60,6 @@ ignore = ["E501", "B007"]
 # S101: Allow standard pytest assert assertions in the test suite
 # F811: Allow redefinition of imports (e.g. inline imports in AppTest wrappers)
 # F401: Allow apparently unused local imports compiled dynamically in AppTest
-"tests/**" = ["S101", "F811", "F401"]
+# S603: Allow spawning of Python/uvicorn background processes in test setup fixtures
+# S607: Allow starting test runner subprocesses with partial executable paths
+"tests/**" = ["S101", "F811", "F401", "S603", "S607"]

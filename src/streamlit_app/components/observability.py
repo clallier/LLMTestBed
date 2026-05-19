@@ -4,6 +4,7 @@ Trace Explorer visualizer component for the Observability Hub.
 High level role: Renders telemetry lists, JSON inspectors, and custom trace formats.
 Delegates active navigation and metric formatting calculations to ObservabilityProcessor.
 """
+
 from typing import Any, Dict, List
 
 import streamlit as st
@@ -59,8 +60,8 @@ def render_formatted_detail(log: Dict[str, Any]):
     Returns:
         None
     """
-    data = log['data']
-    log_type = log['type']
+    data = log["data"]
+    log_type = log["type"]
 
     if log_type == "REQUEST":
         _render_request_details(data)
@@ -78,6 +79,7 @@ def render_formatted_detail(log: Dict[str, Any]):
         st.info("No specific visualizer for this log type.")
         st.write(data)
 
+
 # ==========================================
 # Private Internal Helpers (Rendering Only)
 # ==========================================
@@ -94,7 +96,7 @@ def _render_trace_list(logs: List[Dict[str, Any]]):
             f"{log['time']} | {log['type']}",
             key=f"trace_btn_{idx}",
             use_container_width=True,
-            type="primary" if is_selected else "secondary"
+            type="primary" if is_selected else "secondary",
         ):
             _processor.select_log(idx)
 
@@ -110,7 +112,7 @@ def _render_inspector(logs: List[Dict[str, Any]]):
     with viz_tab:
         render_formatted_detail(selected_log)
     with json_tab:
-        st.json(selected_log['data'])
+        st.json(selected_log["data"])
 
 
 def _render_inspector_header(selected_log: Dict[str, Any]):
@@ -120,13 +122,13 @@ def _render_inspector_header(selected_log: Dict[str, Any]):
         st.markdown(f"### 🔍 Inspector: `{selected_log['type']}`")
         st.caption(f"Logged at {selected_log['time']}")
     with head_col2:
-        export_str = _processor.format_export_payload(selected_log)
+        export_str = _processor.format_export_payload(st.session_state.get("raw_messages", []))
         st.download_button(
             "📥 Export JSON",
             data=export_str,
-            file_name=f"trace_{selected_log['time'].replace(':', '-')}.json",
+            file_name=f"conversation_export_{selected_log['time'].replace(':', '-')}.json",
             mime="application/json",
-            use_container_width=True
+            use_container_width=True,
         )
 
 
@@ -182,19 +184,18 @@ def _render_request_details(data: Dict[str, Any]):
     if "messages" in data:
         st.markdown("#### 💬 Last User Message")
         last_message = next(
-            (msg for msg in reversed(data["messages"]) if msg["role"] == "user"),
-            None
+            (msg for msg in reversed(data["messages"]) if msg["role"] == "user"), None
         )
         if last_message:
             st.chat_message(last_message["role"]).write(last_message["content"])
 
     if "system" in data:
         with st.expander("📝 System Instructions", expanded=False):
-            st.code(data['system'], language="markdown")
+            st.code(data["system"], language="markdown")
 
-    if "tools" in data and data['tools']:
+    if "tools" in data and data["tools"]:
         with st.expander(f"🛠️ Available Tools ({len(data['tools'])})", expanded=False):
-            for tool in data['tools']:
+            for tool in data["tools"]:
                 st.markdown(f"- **{tool['function']['name']}**: {tool['function']['description']}")
 
     with st.expander("💬 Conversation History", expanded=False):
@@ -206,22 +207,21 @@ def _render_response_details(data: Dict[str, Any]):
     """Renders final model completion reply output structures."""
     st.markdown("#### ✨ Model Response")
 
-    thinking = data.get('thinking') or (data.get('message', {}).get('thinking'))
+    thinking = data.get("thinking") or (data.get("message", {}).get("thinking"))
     if thinking:
         st.markdown("#### 🧠 Reasoning Chain")
         st.info(thinking)
 
-    content = data.get('content') or (data.get('message', {}).get('content'))
+    content = data.get("content") or (data.get("message", {}).get("content"))
     if content:
-        st.markdown("#### 💬 Final Output")
         st.markdown(content)
 
-    tool_calls = data.get('message', {}).get('tool_calls')
+    tool_calls = data.get("message", {}).get("tool_calls")
     if tool_calls:
         st.markdown("#### 🛠️ Generated Tool Calls")
         for tc in tool_calls:
             st.warning(f"Call: `{tc['function']['name']}`")
-            st.code(tc['function']['arguments'], language="json")
+            st.code(tc["function"]["arguments"], language="json")
 
 
 def _render_tool_details(data: Any):
@@ -230,7 +230,7 @@ def _render_tool_details(data: Any):
     if isinstance(data, list):
         for call in data:
             st.warning(f"Executing: `{call['function']['name']}`")
-            st.code(call['function']['arguments'], language="json")
+            st.code(call["function"]["arguments"], language="json")
     else:
         st.json(data)
 
@@ -253,9 +253,9 @@ def _render_tool_response_details(data: Dict[str, Any]):
 def _render_error_details(data: Dict[str, Any]):
     """Renders visual layout frames containing stack traces."""
     st.error("#### ❌ System Error")
-    st.write(data.get('message', 'Unknown error occurred'))
-    if 'traceback' in data:
-        st.code(data['traceback'], language="python")
+    st.write(data.get("message", "Unknown error occurred"))
+    if "traceback" in data:
+        st.code(data["traceback"], language="python")
 
 
 def _render_security_details(data: Dict[str, Any]):

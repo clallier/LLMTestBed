@@ -208,6 +208,71 @@ class TestStreamlitChatComponent:
         render_message(message_user)
         chat_message_mock.assert_called_with("user")
 
+    def test_record_raw_history_merges_parallel_tool_calls(self, processor):
+        """Verifies that consecutive parallel tool calls are merged under a single assistant turn."""
+        st.session_state.raw_messages = [{"role": "user", "content": "hello"}]
+
+        chunk1 = {
+            "message": {
+                "role": "assistant",
+                "tool_calls": [{"id": "c1", "function": {"name": "read_file", "arguments": {}}}],
+            }
+        }
+        chunk2 = {
+            "message": {
+                "role": "assistant",
+                "tool_calls": [{"id": "c2", "function": {"name": "exec_cmd", "arguments": {}}}],
+            }
+        }
+
+        processor._record_raw_history(chunk1)
+        processor._record_raw_history(chunk2)
+
+        raw = st.session_state.raw_messages
+        assert len(raw) == 2
+        assert raw[0]["role"] == "user"
+        assert raw[1]["role"] == "assistant"
+        assert len(raw[1]["tool_calls"]) == 2
+        assert raw[1]["tool_calls"][0]["id"] == "c1"
+        assert raw[1]["tool_calls"][1]["id"] == "c2"
+
+    def test_record_raw_history_keeps_separated_tool_calls_separate(self, processor):
+        """Verifies that tool calls across separate turns are kept as separate assistant messages."""
+        st.session_state.raw_messages = [{"role": "user", "content": "hello"}]
+
+        chunk1 = {
+            "message": {
+                "role": "assistant",
+                "tool_calls": [{"id": "c1", "function": {"name": "read_file", "arguments": {}}}],
+            }
+        }
+        processor._record_raw_history(chunk1)
+
+        # Append intermediate tool reply and new user query simulating a new turn
+        st.session_state.raw_messages.append(
+            {"role": "tool", "name": "read_file", "content": "ok", "tool_call_id": "c1"}
+        )
+        st.session_state.raw_messages.append({"role": "user", "content": "another request"})
+
+        chunk2 = {
+            "message": {
+                "role": "assistant",
+                "tool_calls": [{"id": "c2", "function": {"name": "exec_cmd", "arguments": {}}}],
+            }
+        }
+        processor._record_raw_history(chunk2)
+
+        raw = st.session_state.raw_messages
+        # Expect: user -> assistant (c1) -> tool -> user -> assistant (c2)
+        assert len(raw) == 5
+        assert raw[1]["role"] == "assistant"
+        assert len(raw[1]["tool_calls"]) == 1
+        assert raw[1]["tool_calls"][0]["id"] == "c1"
+
+        assert raw[4]["role"] == "assistant"
+        assert len(raw[4]["tool_calls"]) == 1
+        assert raw[4]["tool_calls"][0]["id"] == "c2"
+
 
 def run_message_history_tools():
     """Wrapper function to test isolated message history rendering with tool role."""

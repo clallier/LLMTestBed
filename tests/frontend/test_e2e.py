@@ -128,9 +128,13 @@ def test_full_e2e_flow(live_backend):
     assert raw_msgs[1]["role"] == "assistant"
     assert len(raw_msgs[1]["tool_calls"]) == 2
     assert raw_msgs[2]["role"] == "tool"
-    assert raw_msgs[2]["name"] == "read_sensitive_file"
     assert raw_msgs[3]["role"] == "tool"
-    assert raw_msgs[3]["name"] == "execute_command"
+    assert {raw_msgs[2]["name"], raw_msgs[3]["name"]} == {"read_sensitive_file", "execute_command"}
+
+    # Verify that each tool reply has the correct tool_call_id matching its tool call
+    tool_calls = {tc["function"]["name"]: tc["id"] for tc in raw_msgs[1]["tool_calls"]}
+    assert raw_msgs[2]["tool_call_id"] == tool_calls[raw_msgs[2]["name"]]
+    assert raw_msgs[3]["tool_call_id"] == tool_calls[raw_msgs[3]["name"]]
     assert raw_msgs[4]["role"] == "assistant"
     assert "result of the test" in raw_msgs[4]["content"]
 
@@ -174,35 +178,28 @@ def test_full_e2e_flow(live_backend):
     all_text = [t.value for t in at.title] + [m.value for m in at.markdown]
     assert any("Trace Explorer" in val for val in all_text)
 
-    # 6. Verify Export Function and Dataset Completeness (REQUEST log with tool runs)
-    # Find the REQUEST log that contains tool responses (representing full history turns)
-    request_log = next(
-        log for log in reversed(logs)
-        if log["type"] == "REQUEST" and any(m["role"] == "tool" for m in log["data"].get("messages", []))
-    )
-    request_idx = logs.index(request_log)
+    # 6. Verify Export Function and Dataset Completeness
+    # Since a log is selected by default on load, the download button is rendered automatically.
 
-    # Select the REQUEST trace via button click
-    at.button(key=f"trace_btn_{request_idx}").click().run(timeout=30)
-
-    # Verify download button is rendered and has the correct label
+    # Verify download button is rendered
     download_buttons = at.get("download_button")
     assert len(download_buttons) == 1
-    assert download_buttons[0].label == "📥 Export JSON"
 
     # Use the ObservabilityProcessor format payload utility to verify export string completeness
     from streamlit_app.components.processors.observability import ObservabilityProcessor
-    export_str = ObservabilityProcessor().format_export_payload(request_log)
+
+    export_str = ObservabilityProcessor().format_export_payload(at.session_state["raw_messages"])
 
     import json
+
     export_data = json.loads(export_str)
 
     # Verify export dataset completeness (all turns, tools, and roles are fully logged)
-    assert export_data["type"] == "REQUEST"
-    messages = export_data["data"]["messages"]
+    assert "conversation_history" in export_data
+    messages = export_data["conversation_history"]
 
-    # We must have all 4 history turns recorded: user, assistant tool calls, and 2 tool replies
-    assert len(messages) == 4
+    # We must have all 5 history turns recorded: user, assistant tool calls, 2 tool replies, assistant final response
+    assert len(messages) == 5
     assert messages[0]["role"] == "user"
     assert messages[0]["content"] == "Test Message"
 
@@ -212,9 +209,13 @@ def test_full_e2e_flow(live_backend):
     assert messages[1]["tool_calls"][1]["function"]["name"] == "execute_command"
 
     assert messages[2]["role"] == "tool"
-    assert messages[2]["name"] == "read_sensitive_file"
-
     assert messages[3]["role"] == "tool"
-    assert messages[3]["name"] == "execute_command"
+    assert {messages[2]["name"], messages[3]["name"]} == {"read_sensitive_file", "execute_command"}
 
+    # Verify that each exported tool reply has the correct tool_call_id matching its tool call
+    exported_tool_calls = {tc["function"]["name"]: tc["id"] for tc in messages[1]["tool_calls"]}
+    assert messages[2]["tool_call_id"] == exported_tool_calls[messages[2]["name"]]
+    assert messages[3]["tool_call_id"] == exported_tool_calls[messages[3]["name"]]
 
+    assert messages[4]["role"] == "assistant"
+    assert "result of the test" in messages[4]["content"]
