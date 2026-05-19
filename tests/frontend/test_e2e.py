@@ -173,3 +173,48 @@ def test_full_e2e_flow(live_backend):
     # The Trace Explorer title should be present
     all_text = [t.value for t in at.title] + [m.value for m in at.markdown]
     assert any("Trace Explorer" in val for val in all_text)
+
+    # 6. Verify Export Function and Dataset Completeness (REQUEST log with tool runs)
+    # Find the REQUEST log that contains tool responses (representing full history turns)
+    request_log = next(
+        log for log in reversed(logs)
+        if log["type"] == "REQUEST" and any(m["role"] == "tool" for m in log["data"].get("messages", []))
+    )
+    request_idx = logs.index(request_log)
+
+    # Select the REQUEST trace via button click
+    at.button(key=f"trace_btn_{request_idx}").click().run(timeout=30)
+
+    # Verify download button is rendered and has the correct label
+    download_buttons = at.get("download_button")
+    assert len(download_buttons) == 1
+    assert download_buttons[0].label == "📥 Export JSON"
+
+    # Use the ObservabilityProcessor format payload utility to verify export string completeness
+    from streamlit_app.components.processors.observability import ObservabilityProcessor
+    export_str = ObservabilityProcessor().format_export_payload(request_log)
+
+    import json
+    export_data = json.loads(export_str)
+
+    # Verify export dataset completeness (all turns, tools, and roles are fully logged)
+    assert export_data["type"] == "REQUEST"
+    messages = export_data["data"]["messages"]
+
+    # We must have all 4 history turns recorded: user, assistant tool calls, and 2 tool replies
+    assert len(messages) == 4
+    assert messages[0]["role"] == "user"
+    assert messages[0]["content"] == "Test Message"
+
+    assert messages[1]["role"] == "assistant"
+    assert len(messages[1]["tool_calls"]) == 2
+    assert messages[1]["tool_calls"][0]["function"]["name"] == "read_sensitive_file"
+    assert messages[1]["tool_calls"][1]["function"]["name"] == "execute_command"
+
+    assert messages[2]["role"] == "tool"
+    assert messages[2]["name"] == "read_sensitive_file"
+
+    assert messages[3]["role"] == "tool"
+    assert messages[3]["name"] == "execute_command"
+
+
