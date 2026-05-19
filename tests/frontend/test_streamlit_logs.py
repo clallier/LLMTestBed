@@ -1,12 +1,10 @@
 from streamlit.testing.v1 import AppTest
 
-from streamlit_app.components.logs import render_log_panel
-
 
 def run_logs_component():
     """Wrapper function to test the isolated logs component."""
-    import streamlit as st
-    from streamlit_app.components.logs import render_log_panel
+    import streamlit as st  # noqa: I001
+    from streamlit_app.components.logs import render_log_panel  # noqa: I001
 
     if "logs" not in st.session_state:
         st.session_state.logs = [
