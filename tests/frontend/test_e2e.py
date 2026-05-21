@@ -129,7 +129,7 @@ def test_full_e2e_flow(live_backend):
     assert len(raw_msgs[1]["tool_calls"]) == 2
     assert raw_msgs[2]["role"] == "tool"
     assert raw_msgs[3]["role"] == "tool"
-    assert {raw_msgs[2]["name"], raw_msgs[3]["name"]} == {"read_sensitive_file", "execute_command"}
+    assert {raw_msgs[2]["name"], raw_msgs[3]["name"]} == {"read_file", "execute_shell_command"}
 
     # Verify that each tool reply has the correct tool_call_id matching its tool call
     tool_calls = {tc["function"]["name"]: tc["id"] for tc in raw_msgs[1]["tool_calls"]}
@@ -158,15 +158,15 @@ def test_full_e2e_flow(live_backend):
     # Verify Parallel Tool Calls data
     tool_log = next(log for log in logs if log["type"] == "TOOL")
     assert len(tool_log["data"]) == 2
-    assert tool_log["data"][0]["function"]["name"] == "read_sensitive_file"
-    assert tool_log["data"][1]["function"]["name"] == "execute_command"
+    assert tool_log["data"][0]["function"]["name"] == "read_file"
+    assert tool_log["data"][1]["function"]["name"] == "execute_shell_command"
 
     # Verify Parallel Tool Response data
     tool_response_logs = [log for log in logs if log["type"] == "TOOL_RESPONSE"]
     assert len(tool_response_logs) == 2
     tool_response_names = {log["data"]["name"] for log in tool_response_logs}
-    assert "read_sensitive_file" in tool_response_names
-    assert "execute_command" in tool_response_names
+    assert "read_file" in tool_response_names
+    assert "execute_shell_command" in tool_response_names
 
     # 5. Verify Hub rendering (Switch View via Top Nav Segmented Control)
     at.segmented_control(key="top_nav").set_value("Observability").run(timeout=30)
@@ -205,12 +205,12 @@ def test_full_e2e_flow(live_backend):
 
     assert messages[1]["role"] == "assistant"
     assert len(messages[1]["tool_calls"]) == 2
-    assert messages[1]["tool_calls"][0]["function"]["name"] == "read_sensitive_file"
-    assert messages[1]["tool_calls"][1]["function"]["name"] == "execute_command"
+    assert messages[1]["tool_calls"][0]["function"]["name"] == "read_file"
+    assert messages[1]["tool_calls"][1]["function"]["name"] == "execute_shell_command"
 
     assert messages[2]["role"] == "tool"
     assert messages[3]["role"] == "tool"
-    assert {messages[2]["name"], messages[3]["name"]} == {"read_sensitive_file", "execute_command"}
+    assert {messages[2]["name"], messages[3]["name"]} == {"read_file", "execute_shell_command"}
 
     # Verify that each exported tool reply has the correct tool_call_id matching its tool call
     exported_tool_calls = {tc["function"]["name"]: tc["id"] for tc in messages[1]["tool_calls"]}

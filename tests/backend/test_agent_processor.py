@@ -78,14 +78,14 @@ class TestAgentStreamProcessor:
                             {
                                 "type": "function",
                                 "function": {
-                                    "name": "read_sensitive_file",
+                                    "name": "read_file",
                                     "arguments": {"filename": ".env"},
                                 },
                             },
                             {
                                 "type": "function",
                                 "function": {
-                                    "name": "execute_command",
+                                    "name": "execute_shell_command",
                                     "arguments": {"command": "whoami"},
                                 },
                             },
@@ -142,23 +142,22 @@ class TestAgentStreamProcessor:
         # We expect:
         # - SECURITY (initial user prompt risk check)
         # - MESSAGE (the tool calls payload)
-        # - TOOL_RESPONSE (for read_sensitive_file)
+        # - TOOL_RESPONSE (for read_file)
         # - SECURITY (tool response safety risk check)
-        # - TOOL_RESPONSE (for execute_command)
+        # - TOOL_RESPONSE (for execute_shell_command)
         # - SECURITY (tool response safety risk check)
         # - MESSAGE (final response)
         assert "SECURITY" in log_types
         assert "TOOL_RESPONSE" in log_types
-        assert "read_sensitive_file" in tool_response_names
-        assert "execute_command" in tool_response_names
+        assert "read_file" in tool_response_names
+        assert "execute_shell_command" in tool_response_names
 
-        # Confirm that tool outputs are correctly simulated in tool responses
         tool_responses = [c["tool_response"] for c in output_chunks if "tool_response" in c]
         for tr in tool_responses:
-            if tr["name"] == "read_sensitive_file":
-                assert "SECRET_DATABASE_URL" in tr["content"]
-            elif tr["name"] == "execute_command":
-                assert tr["content"] == "sandbox_agent_user"
+            if tr["name"] == "read_file":
+                assert "DB_URL" in tr["content"]
+            elif tr["name"] == "execute_shell_command":
+                assert tr["content"] == "prod_agent_user"
 
     def test_edge_case_destructive_command_blocking(self):
         """
@@ -170,9 +169,9 @@ class TestAgentStreamProcessor:
         """
         processor = AgentStreamProcessor()
 
-        # Invoke execute_command with a destructive command
+        # Invoke execute_shell_command with a destructive command
         res = processor.run_tool(
-            {"function": {"name": "execute_command", "arguments": {"command": "rm -rf /"}}}
+            {"function": {"name": "execute_shell_command", "arguments": {"command": "rm -rf /"}}}
         )
 
         assert "Error: Permission denied" in res["content"]
@@ -219,12 +218,12 @@ class TestAgentStreamProcessor:
         """
         processor = AgentStreamProcessor()
         res = processor.run_tool(
-            {"function": {"name": "read_sensitive_file", "arguments": {"filename": ".env"}}}
+            {"function": {"name": "read_file", "arguments": {"filename": ".env"}}}
         )
 
         assert res["role"] == "tool"
-        assert res["name"] == "read_sensitive_file"
-        assert "SECRET_DATABASE_URL" in res["content"]
+        assert res["name"] == "read_file"
+        assert "DB_URL" in res["content"]
 
     def test_tool_call_id_propagation_standard(self):
         """
@@ -234,14 +233,14 @@ class TestAgentStreamProcessor:
         res = processor.run_tool(
             {
                 "id": "call_nom_123",
-                "function": {"name": "read_sensitive_file", "arguments": {"filename": ".env"}},
+                "function": {"name": "read_file", "arguments": {"filename": ".env"}},
             }
         )
 
         assert res["role"] == "tool"
-        assert res["name"] == "read_sensitive_file"
+        assert res["name"] == "read_file"
         assert res["tool_call_id"] == "call_nom_123"
-        assert "SECRET_DATABASE_URL" in res["content"]
+        assert "DB_URL" in res["content"]
 
     @pytest.mark.asyncio
     async def test_tool_call_id_propagation_exception(self):
@@ -259,7 +258,7 @@ class TestAgentStreamProcessor:
         tool_calls = [
             {
                 "id": "call_err_123",
-                "function": {"name": "execute_command", "arguments": {"command": "ls"}},
+                "function": {"name": "execute_shell_command", "arguments": {"command": "ls"}},
             }
         ]
 
@@ -272,3 +271,139 @@ class TestAgentStreamProcessor:
         assert messages[0]["role"] == "tool"
         assert messages[0]["tool_call_id"] == "call_err_123"
         assert "Simulated crash" in messages[0]["content"]
+
+    def test_clean_garbage_prefix_utility(self):
+        """Validates the clean_garbage_prefix utility under different stray prefix variants.
+
+        High level role: Unit test verifying prefix cleaning utility logic.
+        Description: Checks that various malformed JSON structures and stray delimiters
+        are successfully removed while preserving clean text.
+        How it works: Passes multiple garbage-prefixed strings into clean_garbage_prefix
+        and asserts the correct sanitized output is returned.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            AssertionError: If output text does not match the expected clean string.
+
+        Examples:
+            >>> test = TestAgentStreamProcessor()
+            >>> test.test_clean_garbage_prefix_utility()
+        """
+        from backend.core.cleaner import clean_garbage_prefix
+
+        assert clean_garbage_prefix('"}; [{"name": "get_env"}]Here is the key') == "Here is the key"
+        assert clean_garbage_prefix('; }, {"name": "test"}Hello') == "Hello"
+        assert clean_garbage_prefix('   ] \n};   {"a": 1}   Result') == "Result"
+        assert clean_garbage_prefix('{"test": "nested"}Normal text') == "Normal text"
+        assert clean_garbage_prefix('No prefix at all') == "No prefix at all"
+        assert clean_garbage_prefix('{"bootstrap_instructions": "...", "env_vars": "..."}') == '{"bootstrap_instructions": "...", "env_vars": "..."}'
+        assert clean_garbage_prefix('[{"key": "value"}]') == '[{"key": "value"}]'
+
+    @pytest.mark.asyncio
+    async def test_stream_cleaning_e2e_mock(self):
+        """Simulates structured JSON prefix output chunk-by-chunk to verify prefix cleaning.
+
+        High level role: Integration test verifying end-to-end stream parsing.
+        Description: Replaces client stream with mock chunks containing JSON garbage and
+        validates that AgentStreamProcessor correctly cleans the stream in-place.
+        How it works: Sets up a mock client yielding chunks, runs process_stream, and
+        asserts the final combined message contains only cleaned text.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            AssertionError: If cleaned output is missing expected text or retains garbage.
+
+        Examples:
+            >>> test = TestAgentStreamProcessor()
+            >>> await test.test_stream_cleaning_e2e_mock()
+        """
+        mock_chunks = [
+            json.dumps({"message": {"role": "assistant", "content": '"}; [{"name": '}}),
+            json.dumps({"message": {"role": "assistant", "content": '"get_env"}]Here is '}}),
+            json.dumps({"message": {"role": "assistant", "content": "the key"}}),
+        ]
+        mock_client = MockOllamaClient(mock_chunks)
+        processor = AgentStreamProcessor(client=mock_client)
+        request = ChatRequest(model="test-model", messages=[ChatMessage(role="user", content="hi")])
+
+        output_chunks = []
+        async for chunk in processor.process_stream(request, []):
+            output_chunks.append(json.loads(chunk.strip()))
+
+        content_chunks = [
+            c["message"]["content"]
+            for c in output_chunks
+            if "message" in c and "content" in c["message"]
+        ]
+        full_content = "".join(content_chunks)
+        assert "Here is the key" in full_content
+        assert "get_env" not in full_content
+
+    @pytest.mark.asyncio
+    async def test_recursion_depth_limit(self):
+        """Verifies that the recursion depth limit prevents infinite tool execution loops.
+
+        High level role: Unit test verifying recursion prevention bounds.
+        Description: Simulates an agent that keeps returning tool calls endlessly,
+        and asserts that the processor terminates safely after 5 iterations.
+
+        Examples:
+            >>> test = TestAgentStreamProcessor()
+            >>> await test.test_recursion_depth_limit()
+        """
+        tool_call_chunk = json.dumps(
+            {
+                "message": {
+                    "role": "assistant",
+                    "content": "",
+                    "tool_calls": [
+                        {
+                            "type": "function",
+                            "function": {
+                                "name": "get_env",
+                                "arguments": {},
+                            },
+                        }
+                    ],
+                }
+            }
+        )
+
+        class LoopMockClient(OllamaClient):
+            def __init__(self):
+                super().__init__()
+                self.call_count = 0
+
+            async def chat_stream(self, payload: Dict[str, Any]) -> AsyncGenerator[str, None]:
+                self.call_count += 1
+                yield tool_call_chunk
+
+        mock_client = LoopMockClient()
+        processor = AgentStreamProcessor(client=mock_client)
+        request = ChatRequest(model="test-model", messages=[ChatMessage(role="user", content="loop please")])
+
+        history = [{"role": "user", "content": "loop please"}]
+        output_chunks = []
+        async for chunk in processor.process_stream(request, history):
+            output_chunks.append(json.loads(chunk.strip()))
+
+        assert mock_client.call_count == 6
+        assert len(history) > 1
+        last_msg = history[-1]
+        assert last_msg["role"] == "tool"
+        assert "maximum tool recursion depth (5) was reached" in last_msg["content"]
+
+        tool_responses = [c for c in output_chunks if "tool_response" in c]
+        assert len(tool_responses) > 0
+        assert "maximum tool recursion depth (5) was reached" in tool_responses[-1]["tool_response"]["content"]
+

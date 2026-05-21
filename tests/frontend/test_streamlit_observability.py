@@ -22,7 +22,7 @@ def run_observability_safe():
     log = {
         "time": "12:00:00",
         "type": "SECURITY",
-        "data": {"risk_score": 0.45, "target": "tool_execute_command", "value": "Safe"},
+        "data": {"risk_score": 0.45, "target": "tool_execute_shell_command", "value": "Safe"},
     }
     render_formatted_detail(log)
 
@@ -133,10 +133,10 @@ def run_observability_conversation_history():
                     "role": "assistant",
                     "content": "",
                     "tool_calls": [
-                        {"function": {"name": "execute_command", "arguments": {"command": "ls"}}}
+                        {"function": {"name": "execute_shell_command", "arguments": {"command": "ls"}}}
                     ],
                 },
-                {"role": "tool", "name": "execute_command", "content": "file1.txt\nfile2.txt"},
+                {"role": "tool", "name": "execute_shell_command", "content": "file1.txt\nfile2.txt"},
                 {"role": "assistant", "content": "Here is the list of files."},
             ],
         },
@@ -156,7 +156,7 @@ def test_observability_conversation_history_rendering():
     assert any("Generated Tool Calls:" in md.value for md in at.markdown)
 
     # Verify that python representation of the tool call is inside a code block
-    assert any("execute_command" in code.value for code in at.code)
+    assert any("execute_shell_command" in code.value for code in at.code)
 
     # Verify that tool response output is correctly formatted in a code block
     assert any("file1.txt" in code.value for code in at.code)
@@ -259,7 +259,7 @@ def test_observability_processor_security_status_dynamic():
 
     # 3. Dynamic High risk tool status
     score_p, summary, badge = proc.get_security_status(
-        {"risk_score": 0.95, "target": "tool_execute_command"}
+        {"risk_score": 0.95, "target": "tool_execute_shell_command"}
     )
     assert score_p == 95.0
     assert summary == "High risk tool output"

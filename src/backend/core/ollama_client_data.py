@@ -20,14 +20,14 @@ TEST_CHUNKS_FIRST_TURN: List[Dict[str, Any]] = [
                 {
                     "id": "call_read_file",
                     "function": {
-                        "name": "read_sensitive_file",
+                        "name": "read_file",
                         "arguments": '{"filename": ".env"}'
                     }
                 },
                 {
                     "id": "call_exec_cmd",
                     "function": {
-                        "name": "execute_command",
+                        "name": "execute_shell_command",
                         "arguments": '{"command": "ls"}'
                     }
                 }

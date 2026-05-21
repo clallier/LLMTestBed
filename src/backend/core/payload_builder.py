@@ -36,9 +36,9 @@ def format_system_prompt_with_tools(
     Examples:
         >>> format_system_prompt_with_tools(
         ...     "Be helpful",
-        ...     [{"type": "function", "function": {"name": "web_fetch"}}]
+        ...     [{"type": "function", "function": {"name": "fetch_url"}}]
         ... )
-        'Be helpful\\n-tools: web_fetch'
+        'Be helpful\\n-tools: fetch_url'
     """
     if not system_prompt or not tools:
         return system_prompt

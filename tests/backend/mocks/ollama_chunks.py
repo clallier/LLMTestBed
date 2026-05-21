@@ -12,7 +12,7 @@ MOCK_SECURITY_SAFE = {
 MOCK_SECURITY_HIGH_RISK = {
     "security": {
         "risk_score": 0.95,
-        "target": "tool_read_sensitive_file",
+        "target": "tool_read_file",
         "value": "High risk tool output"
     }
 }

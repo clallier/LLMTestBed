@@ -58,14 +58,14 @@ class TestStreamlitChatComponent:
         """Verifies that tool call chunks are styled, logged, and returned."""
         state = {"full_response": "", "thinking_content": ""}
         tool_calls = [
-            {"function": {"name": "read_sensitive_file", "arguments": {"filename": ".env"}}}
+            {"function": {"name": "read_file", "arguments": {"filename": ".env"}}}
         ]
         chunk = {"message": {"role": "assistant", "content": "", "tool_calls": tool_calls}}
 
         result = processor._process_chunk(chunk, state)
 
         assert result is not None
-        assert "🛠️ **[Tool Call] read_sensitive_file**" in result
+        assert "🛠️ **[Tool Call] read_file**" in result
         assert ".env" in result
 
         assert len(st.session_state.logs) == 1
@@ -75,13 +75,13 @@ class TestStreamlitChatComponent:
     def test_process_chunk_tool_response(self, processor):
         """Verifies that tool execution responses are styled, logged, and returned."""
         state = {"full_response": "", "thinking_content": ""}
-        tr = {"name": "execute_command", "content": "sandbox_user"}
+        tr = {"name": "execute_shell_command", "content": "sandbox_user"}
         chunk = {"tool_response": tr}
 
         result = processor._process_chunk(chunk, state)
 
         assert result is not None
-        assert "⚙️ **[Tool Response] execute_command**" in result
+        assert "⚙️ **[Tool Response] execute_shell_command**" in result
         assert "sandbox_user" in result
 
         assert len(st.session_state.logs) == 1
@@ -113,13 +113,13 @@ class TestStreamlitChatComponent:
             {
                 "id": "call_1",
                 "type": "function",
-                "function": {"name": "execute_command", "arguments": {"command": "ls"}},
+                "function": {"name": "execute_shell_command", "arguments": {"command": "ls"}},
             },
             {
                 "id": "call_2",
                 "type": "function",
                 "function": {
-                    "name": "read_sensitive_file",
+                    "name": "read_file",
                     "arguments": {"filename": "config.json"},
                 },
             },
@@ -129,15 +129,15 @@ class TestStreamlitChatComponent:
         res1 = processor._process_chunk(chunk_calls, state)
 
         assert res1 is not None
-        assert "execute_command" in res1
-        assert "read_sensitive_file" in res1
+        assert "execute_shell_command" in res1
+        assert "read_file" in res1
         assert "*⌛ Executing tool in parallel...*" in res1
 
         # 2. Process first tool response chunk
         chunk_res1 = {
             "tool_response": {
                 "id": "call_1",
-                "name": "execute_command",
+                "name": "execute_shell_command",
                 "content": "file1.txt\nfile2.txt",
             }
         }
@@ -153,7 +153,7 @@ class TestStreamlitChatComponent:
         chunk_res2 = {
             "tool_response": {
                 "id": "call_2",
-                "name": "read_sensitive_file",
+                "name": "read_file",
                 "content": "SECRET_DB_URL=postgres...",
             }
         }
@@ -301,7 +301,7 @@ def run_execute_chat_request():
     st.session_state.raw_messages = []
 
     def mock_stream(payload):
-        yield ("tools", "🛠️ **[Tool Call] read_sensitive_file**")
+        yield ("tools", "🛠️ **[Tool Call] read_file**")
         yield ("assistant", "Hello! Here is the file content.")
 
     processor = ChatProcessor("http://mock-backend")
@@ -337,12 +337,12 @@ def test_execute_chat_request_creates_separate_blocks():
     assert at.chat_message[0].name == "tools"
     assert at.chat_message[1].name == "assistant"
 
-    assert "🛠️ **[Tool Call] read_sensitive_file**" in at.chat_message[0].markdown[0].value
+    assert "🛠️ **[Tool Call] read_file**" in at.chat_message[0].markdown[0].value
     assert "Hello! Here is the file content." in at.chat_message[1].markdown[0].value
 
     messages = at.session_state["messages"]
     assert len(messages) == 2
     assert messages[0]["role"] == "tools"
-    assert messages[0]["content"] == "🛠️ **[Tool Call] read_sensitive_file**"
+    assert messages[0]["content"] == "🛠️ **[Tool Call] read_file**"
     assert messages[1]["role"] == "assistant"
     assert messages[1]["content"] == "Hello! Here is the file content."

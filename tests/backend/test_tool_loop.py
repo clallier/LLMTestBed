@@ -23,7 +23,7 @@ async def test_recursive_tool_call_history_integrity():
                     "tool_calls": [
                         {
                             "function": {
-                                "name": "read_sensitive_file",
+                                "name": "read_file",
                                 "arguments": {"filename": "config.json"},
                             }
                         }
@@ -51,7 +51,7 @@ async def test_recursive_tool_call_history_integrity():
                     "model": "gemma",
                     "messages": [{"role": "user", "content": "Read the config"}],
                     "stream": True,
-                    "tools": [{"type": "function", "function": {"name": "read_sensitive_file"}}],
+                    "tools": [{"type": "function", "function": {"name": "read_file"}}],
                 },
             )
 
@@ -74,7 +74,7 @@ async def test_recursive_tool_call_history_integrity():
         # This is what we fixed!
         assert messages[1]["role"] == "assistant"
         assert "tool_calls" in messages[1]
-        assert messages[1]["tool_calls"][0]["function"]["name"] == "read_sensitive_file"
+        assert messages[1]["tool_calls"][0]["function"]["name"] == "read_file"
 
         assert messages[2]["role"] == "tool"
-        assert "SECRET" in messages[2]["content"]  # Result of the mock tool
+        assert "DB_URL" in messages[2]["content"]  # Result of the mock tool

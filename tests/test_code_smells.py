@@ -89,7 +89,7 @@ def test_enforce_function_length_limits():
     # Pre-existing/legacy functions that exceed 20 lines (exempt from rule to prevent regressions)
     legacy_exclusions = {
         # OS shell mock command tool: contains multiple complex condition checks for simulation outputs
-        "execute_command",
+        "execute_shell_command",
     }
 
     violations = []

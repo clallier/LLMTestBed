@@ -61,7 +61,7 @@ def test_ignore_instructions_attack_template_exists():
     # Verify categories exist in the expected order
     categories = list(ATTACK_TEMPLATES.keys())
     assert categories[0] == "Direct instruction override"
-    assert "Structured attack" in categories
+    assert "Structured Output Attack" in categories
     assert "Role-play" in categories
     assert "Meta prompting" in categories
 
@@ -161,6 +161,83 @@ def test_render_attack_presets_ui():
     assert not at_clean.exception
     assert at_clean.markdown[0].value == "Selected: None"
     assert len(at_clean.sidebar.button) == 0
+
+
+def run_tool_selection():
+    """Wrapper function to render the tool selection component in tests.
+
+    High level role: Provides an isolated Streamlit context to render the tool selection list.
+    Description: Integrates sidebar and renders the tool checkboxes, printing the result list.
+    How it works:
+    - Renders the _render_tool_selection component in sidebar.
+    - Prints the selected tools as markdown text.
+
+    Args:
+        None
+
+    Returns:
+        None
+
+    Raises:
+        None
+
+    Examples:
+        >>> run_tool_selection()
+    """
+    import streamlit as st
+    from streamlit_app.components.sidebar import _render_tool_selection
+    with st.sidebar:
+        selected, _ = _render_tool_selection()
+    st.write(f"Selected: {', '.join(selected)}")
+
+
+def test_render_tool_selection_ui():
+    """Verifies that tool selection checkbox states are persistent across runs.
+
+    High level role: Validates checkbox deactivations are persisted in custom session state.
+    Description: Mocks the fetch_tools endpoint, renders the sidebar checkboxes,
+    simulates deactivating a tool, and verifies the selected tools list is persistent.
+    How it works:
+    - Patches fetch_tools with a list of three tools.
+    - Initializes AppTest and asserts all checkboxes default to checked (True).
+    - Unchecks the last checkbox (read_file) and reruns.
+    - Asserts that the deselected key is persistent and only active tools are listed.
+
+    Args:
+        None
+
+    Returns:
+        None
+
+    Raises:
+        AssertionError: If checkboxes do not initialize to True or fail to persist.
+
+    Examples:
+        >>> test_render_tool_selection_ui()
+    """
+    from unittest.mock import patch
+    from streamlit.testing.v1 import AppTest
+
+    mock_tools = [
+        {"type": "function", "function": {"name": "fetch_url"}},
+        {"type": "function", "function": {"name": "get_env"}},
+        {"type": "function", "function": {"name": "read_file"}},
+    ]
+
+    with patch("streamlit_app.components.sidebar.fetch_tools", return_value=mock_tools):
+        at = AppTest.from_function(run_tool_selection).run()
+        assert not at.exception
+        assert len(at.sidebar.checkbox) == 3
+        assert at.sidebar.checkbox[0].label == "fetch_url"
+        assert at.sidebar.checkbox[0].value is True
+
+        at.sidebar.checkbox[2].uncheck().run()
+        assert not at.exception
+        
+        assert at.sidebar.checkbox[2].value is False
+        assert at.session_state["tool_selections"]["read_file"] is False
+        assert "read_file" not in at.markdown[0].value
+        assert "fetch_url" in at.markdown[0].value
 
 
 

@@ -68,11 +68,11 @@ def test_format_system_prompt_with_tools():
 
     # 2. With tools
     tools = [
-        {"type": "function", "function": {"name": "web_fetch"}},
-        {"type": "function", "function": {"name": "env"}},
+        {"type": "function", "function": {"name": "fetch_url"}},
+        {"type": "function", "function": {"name": "get_env"}},
     ]
     res = format_system_prompt_with_tools("helper", tools)
-    assert res == "helper\n-tools: web_fetch, env"
+    assert res == "helper\n-tools: fetch_url, get_env"
 
 
 def test_build_ollama_payload_with_system_and_tools():
@@ -100,12 +100,12 @@ def test_build_ollama_payload_with_system_and_tools():
         messages=[ChatMessage(role="user", content="Hello")],
         system="You are a helper",
         tools=[
-            {"type": "function", "function": {"name": "web_fetch"}},
-            {"type": "function", "function": {"name": "env"}}
+            {"type": "function", "function": {"name": "fetch_url"}},
+            {"type": "function", "function": {"name": "get_env"}}
         ]
     )
     payload = build_ollama_payload(request, stream=False)
 
     assert len(payload["messages"]) == 2
     assert payload["messages"][0]["role"] == "system"
-    assert payload["messages"][0]["content"] == "You are a helper\n-tools: web_fetch, env"
+    assert payload["messages"][0]["content"] == "You are a helper\n-tools: fetch_url, get_env"

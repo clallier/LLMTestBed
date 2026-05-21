@@ -168,7 +168,7 @@ async def test_chat_endpoint_with_tools():
                     "tool_calls": [
                         {
                             "function": {
-                                "name": "read_sensitive_file",
+                                "name": "read_file",
                                 "arguments": {"filename": ".env"},
                             }
                         }
@@ -191,7 +191,7 @@ async def test_chat_endpoint_with_tools():
                     "model": "gemma",
                     "messages": [{"role": "user", "content": "hi"}],
                     "stream": True,
-                    "tools": [{"type": "function", "function": {"name": "read_sensitive_file"}}],
+                    "tools": [{"type": "function", "function": {"name": "read_file"}}],
                 },
             )
 
