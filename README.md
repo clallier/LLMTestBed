@@ -21,12 +21,13 @@ Local setup for testing LLM agent security with Ollama.
    - Start server: `ollama serve`
    - Pull models:
      ```bash
+     ollama pull llama3.2:latest
      ollama pull gemma4:e4b
      ollama pull qwen3.6:35b
      ```
 2. **Project**:
    - Install `uv`: `curl -LsSf https://astral-sh/uv/install.sh | sh`
-   - Sync deps: `uv sync`
+   - Sync deps: `uv sync --all-extras`
 
 ## Running
 - **Backend**: `uv run src/backend/main.py` (FastAPI on :8000)

@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Tuple
 import streamlit as st
 
 from streamlit_app.api.client import fetch_models, fetch_tools
-from streamlit_app.presets.attacks import ATTACK_TEMPLATES
+from streamlit_app.presets.attacks import ATTACK_TEMPLATES, FLAT_ATTACK_TEMPLATES
 from streamlit_app.presets.system import SYSTEM_PRESETS
 
 
@@ -64,7 +64,8 @@ def _render_attack_presets() -> str:
 
     High level role: Renders a single selectbox where attack templates are grouped
     under section headers using indentations and visual divider marks. If a header
-    is selected, it acts as a null selection.
+    is selected, it acts as a null selection. Renders the 'Inject Payload' button
+    directly under the selectbox if an attack is selected.
 
     Args:
         None
@@ -87,9 +88,19 @@ def _render_attack_presets() -> str:
             options.append(f"   {template_name}")
 
     selected_option = st.selectbox("Load Attack", options)
+    selected_attack = "None"
     if selected_option.startswith("   "):
-        return selected_option.strip()
-    return "None"
+        selected_attack = selected_option.strip()
+
+    if selected_attack != "None":
+        if st.button("Inject Payload", type="primary", use_container_width=True):
+            payload_content = FLAT_ATTACK_TEMPLATES[selected_attack]
+            st.session_state.setdefault("messages", []).append({"role": "user", "content": payload_content})
+            st.session_state.setdefault("raw_messages", []).append({"role": "user", "content": payload_content})
+            st.session_state.is_processing = True
+            st.rerun()
+
+    return selected_attack
 
 
 

@@ -9,7 +9,6 @@ from streamlit_app.components.chat import process_assistant_response, render_mes
 from streamlit_app.components.header import close_top_nav, render_top_nav
 from streamlit_app.components.observability import render_observability_hub
 from streamlit_app.components.sidebar import render_sidebar
-from streamlit_app.presets.attacks import FLAT_ATTACK_TEMPLATES
 from streamlit_app.styles.style_loader import apply_styles
 
 # Page Config
@@ -48,20 +47,7 @@ if "is_processing" not in st.session_state:
 if view == "Sandbox":
     st.header("Agent Attack Sandbox")
 
-    if selected_attack != "None":
-        st.info(f"Attack Selected: {selected_attack}")
-        if st.button("Inject Payload"):
-            payload_content = FLAT_ATTACK_TEMPLATES[selected_attack]
-            st.session_state.messages.append({
-                "role": "user",
-                "content": payload_content
-            })
-            st.session_state.raw_messages.append({
-                "role": "user",
-                "content": payload_content
-            })
-            st.session_state.is_processing = True
-            st.rerun()
+
 
     # Render History and handle Assistant
     render_message_history()
