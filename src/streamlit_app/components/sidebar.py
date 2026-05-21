@@ -60,9 +60,38 @@ def _render_system_presets() -> str:
 
 
 def _render_attack_presets() -> str:
-    """Renders the dropdown for selecting attack templates."""
+    """Renders a single hierarchical dropdown for selecting attack templates.
+
+    High level role: Renders a single selectbox where attack templates are grouped
+    under section headers using indentations and visual divider marks. If a header
+    is selected, it acts as a null selection.
+
+    Args:
+        None
+
+    Returns:
+        str: The key of the selected attack template (with leading whitespace stripped),
+            or "None" if a header or "None" is selected.
+
+    Raises:
+        None
+
+    Examples:
+        >>> selected_attack = _render_attack_presets()
+    """
     st.markdown("### 🏹 Attack Templates")
-    return st.selectbox("Load Attack", ["None"] + list(ATTACK_TEMPLATES.keys()))
+    options = ["None"]
+    for category, templates in ATTACK_TEMPLATES.items():
+        options.append(f"── {category} ──")
+        for template_name in templates.keys():
+            options.append(f"   {template_name}")
+
+    selected_option = st.selectbox("Load Attack", options)
+    if selected_option.startswith("   "):
+        return selected_option.strip()
+    return "None"
+
+
 
 
 def _render_tool_selection() -> Tuple[List[str], List[Dict[str, Any]]]:

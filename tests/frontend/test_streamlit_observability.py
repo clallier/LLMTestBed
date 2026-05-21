@@ -22,7 +22,7 @@ def run_observability_safe():
     log = {
         "time": "12:00:00",
         "type": "SECURITY",
-        "data": {"risk_score": 0.45, "target": "tool_execute_command", "summary": "Safe"},
+        "data": {"risk_score": 0.45, "target": "tool_execute_command", "value": "Safe"},
     }
     render_formatted_detail(log)
 
@@ -44,7 +44,7 @@ def run_observability_unsafe():
     log = {
         "time": "12:00:00",
         "type": "SECURITY",
-        "data": {"risk_score": 0.95, "target": "user_prompt", "summary": "High risk prompt"},
+        "data": {"risk_score": 0.95, "target": "user_prompt", "value": "High risk prompt"},
     }
     render_formatted_detail(log)
 
@@ -226,3 +226,50 @@ def test_observability_processor_arguments_formatting():
     # String arguments
     formatted_str = proc.format_tool_arguments("raw_string")
     assert formatted_str == "raw_string"
+
+
+def test_observability_processor_security_status_dynamic():
+    """
+    Verifies that safety summary status is generated dynamically when 'summary' is missing.
+
+    High level role: Validates dynamic guardrail category fallback labels.
+
+    Examples:
+        >>> test_observability_processor_security_status_dynamic()
+    """
+    from streamlit_app.components.processors.observability import ObservabilityProcessor
+
+    proc = ObservabilityProcessor()
+
+    # 1. Dynamic Safe status
+    score_p, summary, badge = proc.get_security_status(
+        {"risk_score": 0.12, "target": "user_prompt"}
+    )
+    assert score_p == 12.0
+    assert summary == "Safe"
+    assert badge == "green"
+
+    # 2. Dynamic High risk prompt status
+    score_p, summary, badge = proc.get_security_status(
+        {"risk_score": 0.95, "target": "user_prompt"}
+    )
+    assert score_p == 95.0
+    assert summary == "High risk prompt"
+    assert badge == "red"
+
+    # 3. Dynamic High risk tool status
+    score_p, summary, badge = proc.get_security_status(
+        {"risk_score": 0.95, "target": "tool_execute_command"}
+    )
+    assert score_p == 95.0
+    assert summary == "High risk tool output"
+    assert badge == "red"
+
+    # 4. Dynamic Medium Risk status
+    score_p, summary, badge = proc.get_security_status(
+        {"risk_score": 0.65, "target": "user_prompt"}
+    )
+    assert score_p == 65.0
+    assert summary == "Medium Risk"
+    assert badge == "red"  # Because score > 0.5
+

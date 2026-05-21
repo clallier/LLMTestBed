@@ -9,7 +9,7 @@ from streamlit_app.components.chat import process_assistant_response, render_mes
 from streamlit_app.components.header import close_top_nav, render_top_nav
 from streamlit_app.components.observability import render_observability_hub
 from streamlit_app.components.sidebar import render_sidebar
-from streamlit_app.presets.attacks import ATTACK_TEMPLATES
+from streamlit_app.presets.attacks import FLAT_ATTACK_TEMPLATES
 from streamlit_app.styles.style_loader import apply_styles
 
 # Page Config
@@ -51,7 +51,7 @@ if view == "Sandbox":
     if selected_attack != "None":
         st.info(f"Attack Selected: {selected_attack}")
         if st.button("Inject Payload"):
-            payload_content = ATTACK_TEMPLATES[selected_attack]
+            payload_content = FLAT_ATTACK_TEMPLATES[selected_attack]
             st.session_state.messages.append({
                 "role": "user",
                 "content": payload_content

@@ -259,7 +259,34 @@ def _render_error_details(data: Dict[str, Any]):
 
 
 def _render_security_details(data: Dict[str, Any]):
-    """Renders visual metric layouts representing guardrail scores."""
+    """
+    Renders visual metric layouts representing guardrail scores.
+
+    High level role: Displays safety scores, status badges, and analyzed text contents.
+    Description: Formats a security trace event by rendering risk metrics,
+    the evaluated target, status color badge, the success/warning alert callouts,
+    and the raw text/content value that was processed.
+    How it works:
+    - Fetches clean metric percentage, status label, and color from the processor.
+    - Uses Streamlit columns to display a risk score metric and status colored badge.
+    - If 'value' is present in the telemetry data, displays it inside a text code block.
+    - Shows success/warning callout based on the risk threshold.
+
+    Args:
+        data (Dict[str, Any]): Security telemetry log dictionary containing
+            'risk_score' (float), 'target' (str), and optional 'value' (str)
+            or 'summary' (str).
+
+    Returns:
+        None
+
+    Raises:
+        KeyError: This method does not raise any key errors and safely falls back to defaults.
+
+    Examples:
+        >>> log_data = {"risk_score": 0.15, "target": "user_prompt", "value": "test"}
+        >>> _render_security_details(log_data)
+    """
     st.markdown("#### 🛡️ Security Analysis")
     score_percent, summary, badge_color = _processor.get_security_status(data)
 
@@ -270,6 +297,10 @@ def _render_security_details(data: Dict[str, Any]):
         st.markdown(f"**Status**\n### :{badge_color}[{summary}]")
 
     st.markdown(f"**Target:** `{data.get('target', 'unknown')}`")
+
+    if "value" in data:
+        st.markdown("**Analyzed Value:**")
+        st.code(data["value"], language="text")
 
     if score_percent > 50.0:
         st.warning("⚠️ High risk of prompt injection detected in this segment.")

@@ -56,22 +56,31 @@ class AgentStreamProcessor:
         """
         Primary entry point of the pipeline checking prompt risk and starting the stream.
 
+        High level role: Coordinates input security preprocessing and Ollama chunk generation.
+        Description: Assesses the risk score of the last user prompt, yields the security assessment,
+        and streams the model's reply including recursive tool executions.
+        How it works:
+        - Gets the last user prompt from conversation history.
+        - Evaluates risk score using SecurityPreprocessor, rounded to 2 digits.
+        - Streams NDJSON format chunks consisting of security analysis and message completions.
+
         Args:
             request (ChatRequest): The incoming request payload.
-            messages (List[Dict[str, Any]]): The active conversation messages.
+            messages (List[Dict[str, Any]]): The active conversation messages history.
 
         Yields:
             str: NDJSON line chunks of initial security and assistant responses.
+
+        Raises:
+            Exception: Propagates internal client or preprocessor execution failures.
+
+        Examples:
+            >>> processor = AgentStreamProcessor()
+            >>> async for chunk in processor.process_stream(req, msgs):
+            ...     print(chunk)
         """
         last_prompt = messages[-1]["content"] if messages else ""
-        risk_score = self._security_engine.calculate_risk(last_prompt)
-        yield json.dumps({
-            "security": {
-                "risk_score": risk_score,
-                "target": "user_prompt",
-                "summary": "High risk prompt" if risk_score > 0.8 else "Safe"
-            }
-        }) + "\n"
+        yield self._create_security_payload("user_prompt", last_prompt)
 
         async for chunk in self.handle_model_stream(request, messages):
             yield chunk
@@ -296,25 +305,67 @@ class AgentStreamProcessor:
             tr["id"] = tool_call_id
         return json.dumps({"tool_response": tr}) + "\n"
 
+    def _create_security_payload(self, target: str, content: str) -> str:
+        """
+        Calculates risk score and creates a standard security telemetry log payload.
+
+        High level role: Standardizes the security telemetry packet creation.
+        Description: Processes the given content through the safety preprocessor,
+        rounds the resulting risk score to two decimal places, and packages it.
+        How it works:
+        - Calls the preprocessor to analyze safety risk.
+        - Rounds risk to 2 digits.
+        - Formats the resulting values into a security trace JSON string block.
+
+        Args:
+            target (str): The assessment target identifier (e.g. 'user_prompt', 'tool_execute_command').
+            content (str): The text content (user prompt or tool execution result) to evaluate.
+
+        Returns:
+            str: JSON string containing the security risk analysis with risk_score, target, and value.
+
+        Raises:
+            Exception: Propagates internal preprocessor analysis errors.
+
+        Examples:
+            >>> processor = AgentStreamProcessor()
+            >>> processor._create_security_payload("user_prompt", "hello")
+        """
+        risk_score = self._security_engine.calculate_risk(content)
+        rounded_risk_score = round(risk_score, 2)
+        return json.dumps({
+            "security": {
+                "risk_score": rounded_risk_score,
+                "target": target,
+                "value": content
+            }
+        }) + "\n"
+
     def _create_tool_security_payload(self, name: str, content: str) -> str:
         """
         Helper to calculate and format a tool response security risk payload.
 
-        Arguments:
-            name (str): The name of the tool.
+        High level role: Formats tool response safety assessments.
+        Description: Calculates the Bayesian security risk score of the tool output content
+        and packages it into a standard security trace payload.
+        How it works:
+        - Delegates execution to the centralized security payload builder.
+
+        Args:
+            name (str): The name of the tool being analyzed.
             content (str): The execution text content to analyze.
 
         Returns:
-            str: JSON string containing the security risk analysis.
+            str: JSON string containing the security risk analysis with risk_score, target, and value.
+
+        Raises:
+            Exception: Propagates internal preprocessor analysis errors.
+
+        Examples:
+            >>> processor = AgentStreamProcessor()
+            >>> processor._create_tool_security_payload("execute_command", "output text")
         """
-        risk_score = self._security_engine.calculate_risk(content)
-        return json.dumps({
-            "security": {
-                "risk_score": risk_score,
-                "target": f"tool_{name}",
-                "summary": "High risk tool output" if risk_score > 0.8 else "Safe"
-            }
-        }) + "\n"
+        return self._create_security_payload(f"tool_{name}", content)
 
     def _parse_chunk(self, chunk_str: str) -> Optional[Dict[str, Any]]:
         """

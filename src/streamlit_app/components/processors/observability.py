@@ -77,15 +77,45 @@ class ObservabilityProcessor:
         Evaluates risk telemetry scores and generates matching UI status variables.
 
         High level role: Translates raw risk floats into semantic CSS colors and badges.
+        Description: Takes security log data, extracts the risk score and target/summary,
+        and computes the percentage, status label, and corresponding Streamlit CSS color badge.
+        How it works:
+        - If 'summary' is present in the payload (backward compatibility), it uses it.
+        - Otherwise, it dynamically determines the status label based on target and risk score.
+        - Translates the final label into green, red, or orange badges based on safety checks.
 
-        Arguments:
-            security_data (Dict[str, Any]): Bayesian guardrail metrics.
+        Args:
+            security_data (Dict[str, Any]): Bayesian guardrail metrics dictionary containing
+                'risk_score' (float), optionally 'target' (str), and optionally 'summary' (str)
+                or 'value' (str).
 
         Returns:
-            Tuple[float, str, str]: A tuple of (risk_score_percent, summary_label, badge_color).
+            Tuple[float, str, str]: A tuple containing:
+                1. risk_score_percent (float): Risk score scaled to 0-100.
+                2. summary_label (str): Textual safety summary of the assessed target.
+                3. badge_color (str): Streamlit semantic color name ('green', 'red', or 'orange').
+
+        Raises:
+            KeyError: This method does not raise any key errors and safely falls back to defaults.
+
+        Examples:
+            >>> processor = ObservabilityProcessor()
+            >>> processor.get_security_status({"risk_score": 0.15})
+            (15.0, 'Safe', 'green')
         """
         score = security_data.get("risk_score", 0.0)
-        summary = security_data.get("summary", "No details")
+        target = security_data.get("target", "unknown")
+
+        # Try getting summary directly for backward compatibility
+        summary = security_data.get("summary")
+        if summary is None:
+            # Generate a semantic status label based on the risk score and target
+            if score > 0.8:
+                summary = "High risk prompt" if target == "user_prompt" else "High risk tool output"
+            elif score > 0.5:
+                summary = "Medium Risk"
+            else:
+                summary = "Safe"
 
         summary_clean = summary.lower()
         if "safe" in summary_clean:

@@ -5,7 +5,7 @@ MOCK_SECURITY_SAFE = {
     "security": {
         "risk_score": 0.15,
         "target": "user_prompt",
-        "summary": "Safe"
+        "value": "Safe"
     }
 }
 
@@ -13,7 +13,7 @@ MOCK_SECURITY_HIGH_RISK = {
     "security": {
         "risk_score": 0.95,
         "target": "tool_read_sensitive_file",
-        "summary": "High risk tool output"
+        "value": "High risk tool output"
     }
 }
 

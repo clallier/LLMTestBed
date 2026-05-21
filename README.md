@@ -1,8 +1,22 @@
 # LLMTestbed
 
-Local setup for testing LLM agent security with Ollama.
+Making a testbed to test LLM agent security against local LLM (Ollama).
+
+## Idea
+  
+Inspired from "Understanding Prompt Injection Techniques, Challenges, and Advanced Escalation by [Brian Vermeer](https://brianvermeer.nl/)" presentation at Devoxx Belgium 2025.
+
+https://www.youtube.com/watch?v=72e_0WxaQl0
+
+"**Prompt Injection** focuses on injecting commands into the model's input, which it then interprets as part of its own directives."
+"**Jailbreaking** primarily aims to bypass content policies and safety guardrails that are baked into the model."
+
+![Prompt Injection vs Jailbreaking](./docs/prompt-injection-vs-jailbreaking.png)
 
 ## Setup
+
+Local setup for testing LLM agent security with Ollama.
+
 1. **Ollama**:
    - Start server: `ollama serve`
    - Pull models:
@@ -28,7 +42,7 @@ Local setup for testing LLM agent security with Ollama.
 ## Notes
 - Backend handles the "Agent Loop" (calls tools, feeds results back to LLM).
 - Logs show full JSON history + model "thinking" if supported.
-- Use the "Vulnerable Agent" preset for testing injections.
+- Use the "RogerBot" preset for testing injections.
 
 ## Testing & Code Quality
 
