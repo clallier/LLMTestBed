@@ -281,8 +281,8 @@ TOOLS = [
 
 # Mapping function names to Python functions
 TOOL_MAP: Dict[str, Callable] = {
-    # "fetch_url": fetch_url,
-    # "send_email": send_email,
+    "fetch_url": fetch_url,
+    "send_email": send_email,
     "read_file": read_file,
     "execute_shell_command": execute_shell_command,
     "get_env": get_env

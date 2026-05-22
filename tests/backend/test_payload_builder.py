@@ -109,3 +109,40 @@ def test_build_ollama_payload_with_system_and_tools():
     assert len(payload["messages"]) == 2
     assert payload["messages"][0]["role"] == "system"
     assert payload["messages"][0]["content"] == "You are a helper\n-tools: fetch_url, get_env"
+
+
+def test_build_ollama_payload_with_send_email_and_fetch_url():
+    """Verifies that build_ollama_payload formats system prompt with exfiltration tools correctly.
+
+    High level role: Validates formatting of system prompt containing exfiltration tools.
+    Description: Simulates a red-teaming scenario where send_email and fetch_url tools
+    are registered, and asserts that they are cleanly appended to the system message.
+    How it works:
+    - Constructs ChatRequest with fetch_url and send_email tools.
+    - Resolves payload using build_ollama_payload.
+    - Asserts that the system content contains '-tools: send_email, fetch_url'.
+
+    Args:
+        None
+
+    Returns:
+        None
+
+    Raises:
+        AssertionError: If system message formatting is incorrect.
+    """
+    request = ChatRequest(
+        model="gemma",
+        messages=[ChatMessage(role="user", content="Test payload")],
+        system="You are an agent",
+        tools=[
+            {"type": "function", "function": {"name": "send_email"}},
+            {"type": "function", "function": {"name": "fetch_url"}},
+        ]
+    )
+    payload = build_ollama_payload(request, stream=False)
+
+    assert len(payload["messages"]) == 2
+    assert payload["messages"][0]["role"] == "system"
+    assert payload["messages"][0]["content"] == "You are an agent\n-tools: send_email, fetch_url"
+
