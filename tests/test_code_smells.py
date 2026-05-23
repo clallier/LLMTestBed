@@ -18,6 +18,8 @@ In addition to this custom checker, the project supports industry-standard stati
 import ast
 import glob
 import os
+import shutil
+import subprocess
 
 import pytest
 
@@ -201,9 +203,6 @@ def test_enforce_class_layout_ordering():
 
 def test_ruff_linting():
     """Runs Ruff check on the src directory and asserts no errors."""
-    import shutil
-    import subprocess
-
     if not shutil.which("ruff"):
         pytest.fail("Ruff is not installed. Please run: uv sync --all-extras")
 
@@ -214,9 +213,6 @@ def test_ruff_linting():
 
 def test_bandit_security_scan():
     """Runs Bandit security scan on the src directory and asserts no vulnerabilities."""
-    import shutil
-    import subprocess
-
     if not shutil.which("bandit"):
         pytest.fail("Bandit is not installed. Please run: uv sync --all-extras")
 
@@ -227,9 +223,6 @@ def test_bandit_security_scan():
 
 def test_radon_complexity_scan():
     """Runs Radon complexity analysis on the src directory and checks for nesting/complexity issues."""
-    import shutil
-    import subprocess
-
     if not shutil.which("radon"):
         pytest.fail("Radon is not installed. Please run: uv sync --all-extras")
 
@@ -240,9 +233,6 @@ def test_radon_complexity_scan():
 
 def test_pylint_linting():
     """Runs Pylint on the src directory and asserts no architectural smells."""
-    import shutil
-    import subprocess
-
     if not shutil.which("pylint"):
         pytest.fail("Pylint is not installed. Please run: uv sync --all-extras")
 

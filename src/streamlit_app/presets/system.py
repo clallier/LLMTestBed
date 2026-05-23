@@ -8,14 +8,7 @@ and strict security auditor prompts for models.
 SYSTEM_PRESETS = {
     "Default": {
         "system_prompt": "You are a helpful AI assistant. Be concise and accurate.",
-        "selected_tools": [
-            "fetch_url",
-            "send_email",
-            "read_file",
-            "execute_shell_command",
-            "get_env",
-            "list_users",
-        ],
+        "selected_tools": [],
     },
     "RogerBot": {
         "system_prompt": """- You are RogerBot.

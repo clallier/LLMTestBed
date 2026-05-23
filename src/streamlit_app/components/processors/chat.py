@@ -244,9 +244,9 @@ class ChatProcessor:
             )
             block.extend([f"⚙️ **[Tool Response] {name}**", resp_val])
 
-            blocks.append("\n\n".join(block))
+            blocks.append('<div class="tool-block">\n\n' + "\n\n".join(block) + "\n\n</div>")
 
-        return "\n\n---\n\n".join(blocks)
+        return "\n\n".join(blocks)
 
     def _process_chunk(self, chunk: Dict[str, Any], state: Dict[str, Any]) -> Optional[str]:
         """

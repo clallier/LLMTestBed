@@ -50,16 +50,20 @@ line-length = 100
 target-version = "py312"
 
 [tool.ruff.lint]
-# E: Pycodestyle (Style), F: Pyflakes (Bugs), B: Bugbear (Smells), I: Isort (Imports), S: Bandit (Security), ISC: Implicit String Concatenation
-select = ["E", "F", "B", "I", "S", "ISC"]
+# E: Pycodestyle (Style), F: Pyflakes (Bugs), B: Bugbear (Smells), I: Isort (Imports), S: Bandit (Security), 
+# ISC: Implicit String Concatenation, PLC0415: import-outside-toplevel
+select = ["E", "F", "B", "I", "S", "ISC", "PLC0415"]
 # E501: Line too long (allows long natural-language prompts and base64 security templates)
 # B007: Unused loop variable (allows descriptive unpacking variables in dictionary iterations)
 ignore = ["E501", "B007"]
 
 [tool.ruff.lint.per-file-ignores]
 # S101: Allow standard pytest assert assertions in the test suite
-# F811: Allow redefinition of imports (e.g. inline imports in AppTest wrappers)
-# F401: Allow apparently unused local imports compiled dynamically in AppTest
 # S603: Allow spawning of Python/uvicorn background processes in test setup fixtures
 # S607: Allow starting test runner subprocesses with partial executable paths
-"tests/**" = ["S101", "F811", "F401", "S603", "S607"]
+"tests/**" = ["S101", "S603", "S607"]
+# PLC0415: Allow local imports in AppTest runner wrappers
+# F811: Allow redefinition of imports in AppTest wrappers
+"tests/**/utils_*.py" = ["PLC0415", "F811"]
+
+

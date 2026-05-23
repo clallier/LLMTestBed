@@ -42,7 +42,7 @@ def render_message(message: Dict[str, Any]):
 
     if role == ROLE_TOOLS:
         with st.chat_message(ROLE_TOOLS, avatar=AVATAR_TOOLS):
-            st.markdown(content)
+            st.markdown(content, unsafe_allow_html=True)
     else:
         with st.chat_message(role):
             st.markdown(content)
@@ -105,7 +105,7 @@ def render_streaming_response(processor: ChatProcessor, payload: Dict[str, Any])
                     tools_placeholder = tools_container.empty()
                 tools_content = text
                 if tools_placeholder:
-                    tools_placeholder.markdown(tools_content)
+                    tools_placeholder.markdown(tools_content, unsafe_allow_html=True)
             else:
                 if not assistant_container:
                     assistant_container = st.chat_message(ROLE_ASSISTANT)
@@ -147,3 +147,5 @@ def process_assistant_response(
 
     st.session_state.is_processing = False
     st.rerun()
+
+

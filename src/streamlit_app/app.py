@@ -3,22 +3,23 @@ Streamlit Multi-Agent Security Sandbox App.
 
 High level role: Entry point for the frontend Streamlit dashboard, layouts, and routes.
 """
-from typing import Any
+
 
 import streamlit as st
 
-from streamlit_app.components.chat import process_assistant_response, render_message_history
+from streamlit_app.components.chat import (
+    process_assistant_response,
+    render_message_history,
+)
 from streamlit_app.components.header import close_top_nav, render_top_nav
 from streamlit_app.components.observability import render_observability_hub
-from streamlit_app.components.processors.chat import ChatProcessor
 from streamlit_app.components.sidebar import render_sidebar
+from streamlit_app.components.user_input import UserInputComponent
 from streamlit_app.styles.style_loader import apply_styles
 
 # Page Config
 st.set_page_config(
-    page_title="LLMTestbed",
-    page_icon="src/streamlit_app/assets/logo.png",
-    layout="wide"
+    page_title="LLMTestbed", page_icon="src/streamlit_app/assets/logo.png", layout="wide"
 )
 
 # Apply Styles from folder
@@ -28,13 +29,9 @@ apply_styles()
 view = render_top_nav()
 
 # 2. Render Sidebar (Model configs, tools, etc.)
-(
-    selected_model,
-    system_prompt,
-    selected_tool_names,
-    available_tools,
-    selected_attack
-) = render_sidebar()
+(selected_model, system_prompt, selected_tool_names, available_tools, selected_attack) = (
+    render_sidebar()
+)
 
 # 3. Initialize Session State
 if "messages" not in st.session_state:
@@ -50,8 +47,6 @@ if "is_processing" not in st.session_state:
 if view == "Sandbox":
     st.header("Agent Attack Sandbox")
 
-
-
     # Render History and handle Assistant
     render_message_history()
 
@@ -62,33 +57,12 @@ if view == "Sandbox":
     )
     if is_user_turn:
         process_assistant_response(
-            selected_model,
-            system_prompt,
-            selected_tool_names,
-            available_tools
+            selected_model, system_prompt, selected_tool_names, available_tools
         )
 
-    # Multimodal image attachment uploader and staged preview
-    uploaded_image = st.file_uploader(
-        "Attach Image",
-        type=["png", "jpg", "jpeg"],
-        label_visibility="collapsed",
-        key="chat_image_uploader",
-    )
-    if uploaded_image:
-        st.image(uploaded_image, width=120, caption="Attached Image (stages for next prompt)")
-
-    # ROOT LEVEL INPUT - This ensures it sticks to the bottom of the viewport
-    if prompt := st.chat_input("Type here and press Enter to attack..."):
-        user_message: dict[str, Any] = {"role": "user", "content": prompt}
-        if uploaded_image:
-            base64_img = ChatProcessor.encode_image_to_base64(uploaded_image)
-            user_message["images"] = [base64_img]
-
-        st.session_state.messages.append(user_message)
-        st.session_state.raw_messages.append(user_message)
-        st.session_state.is_processing = True
-        st.rerun()
+    # 5. User Input Handler Component (with native multimodal capabilities)
+    user_input_component = UserInputComponent()
+    user_input_component.render()
 
 else:
     render_observability_hub()

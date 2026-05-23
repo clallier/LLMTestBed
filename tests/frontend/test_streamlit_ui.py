@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 import pytest
+import streamlit as st
 from streamlit.testing.v1 import AppTest
 
 
@@ -16,8 +17,6 @@ def mocked_app():
         mock_tools.return_value = []
 
         def fake_exec(processor, payload):
-            import streamlit as st
-
             st.session_state.messages.append({"role": "assistant", "content": "Fake response"})
 
         mock_exec.side_effect = fake_exec

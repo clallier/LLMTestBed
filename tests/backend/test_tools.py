@@ -1,3 +1,5 @@
+import pytest
+
 from backend.core.tool_registry import (
     ToolProcessor,
     execute_shell_command,
@@ -107,7 +109,6 @@ def test_fetch_url():
     assert "Mock Example" in fetch_url("http://example.com")
     assert "Mock Google" in fetch_url("https://google.com")
     assert "SIMULATED" in fetch_url("https://other.com")
-    import pytest
     with pytest.raises(ValueError):
         fetch_url("invalid-url")
 

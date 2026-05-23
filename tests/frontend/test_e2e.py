@@ -1,3 +1,4 @@
+import json
 import os
 import subprocess
 import sys
@@ -6,6 +7,8 @@ import time
 import httpx
 import pytest
 from streamlit.testing.v1 import AppTest
+
+from streamlit_app.components.processors.observability import ObservabilityProcessor
 
 # Internal Constants
 TEST_PORT = 8001
@@ -186,12 +189,7 @@ def test_full_e2e_flow(live_backend):
     assert len(download_buttons) == 1
 
     # Use the ObservabilityProcessor format payload utility to verify export string completeness
-    from streamlit_app.components.processors.observability import ObservabilityProcessor
-
     export_str = ObservabilityProcessor().format_export_payload(at.session_state["raw_messages"])
-
-    import json
-
     export_data = json.loads(export_str)
 
     # Verify export dataset completeness (all turns, tools, and roles are fully logged)

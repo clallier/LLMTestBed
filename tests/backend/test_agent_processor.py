@@ -4,6 +4,7 @@ from typing import Any, AsyncGenerator, Dict
 import pytest
 
 from backend.core.agent_processor import AgentStreamProcessor
+from backend.core.cleaner import clean_garbage_prefix
 from backend.core.ollama_client import OllamaClient
 from backend.schemas.chat import ChatMessage, ChatRequest
 
@@ -294,8 +295,6 @@ class TestAgentStreamProcessor:
             >>> test = TestAgentStreamProcessor()
             >>> test.test_clean_garbage_prefix_utility()
         """
-        from backend.core.cleaner import clean_garbage_prefix
-
         assert clean_garbage_prefix('"}; [{"name": "get_env"}]Here is the key') == "Here is the key"
         assert clean_garbage_prefix('; }, {"name": "test"}Hello') == "Hello"
         assert clean_garbage_prefix('   ] \n};   {"a": 1}   Result') == "Result"

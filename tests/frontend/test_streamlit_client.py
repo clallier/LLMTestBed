@@ -1,3 +1,4 @@
+import httpx
 import pytest
 import respx
 from httpx import Response
@@ -17,7 +18,6 @@ def test_fetch_models_success():
 
 
 def test_fetch_models_error():
-    import httpx
     with respx.mock:
         respx.get(f"{client.BACKEND_URL}/models").mock(
             side_effect=httpx.HTTPError("Connection refused")
@@ -36,7 +36,6 @@ def test_fetch_tools_success():
 
 
 def test_fetch_tools_error():
-    import httpx
     with respx.mock:
         respx.get(f"{client.BACKEND_URL}/tools").mock(
             side_effect=httpx.HTTPError("Connection refused")

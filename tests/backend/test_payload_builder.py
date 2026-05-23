@@ -1,6 +1,6 @@
-import pytest
 
-from backend.core.payload_builder import build_ollama_payload
+from backend.core.payload_builder import build_ollama_payload, format_system_prompt_with_tools
+from backend.core.tool_registry import TOOLS
 from backend.schemas.chat import ChatMessage, ChatRequest
 
 
@@ -60,8 +60,6 @@ def test_format_system_prompt_with_tools():
     Raises:
         AssertionError: If any assertions fail.
     """
-    from backend.core.payload_builder import format_system_prompt_with_tools
-
     # 1. No tools
     assert format_system_prompt_with_tools("helper", None) == "helper"
     assert format_system_prompt_with_tools("helper", []) == "helper"
@@ -171,8 +169,6 @@ def test_build_ollama_payload_with_real_tools_definitions():
     Examples:
         >>> test_build_ollama_payload_with_real_tools_definitions()
     """
-    from backend.core.tool_registry import TOOLS
-
     req = ChatRequest(
         model="gemma",
         messages=[ChatMessage(role="user", content="Hello")],

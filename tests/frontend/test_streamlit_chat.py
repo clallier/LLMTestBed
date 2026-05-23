@@ -1,9 +1,12 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 import streamlit as st
+from streamlit.testing.v1 import AppTest
 
+from streamlit_app.components.chat import render_message
 from streamlit_app.components.processors.chat import ChatProcessor
+from tests.frontend.utils_streamlit_chat import run_execute_chat_request, run_message_history_tools
 
 
 class TestStreamlitChatComponent:
@@ -193,8 +196,6 @@ class TestStreamlitChatComponent:
 
     def test_render_message(self, monkeypatch):
         """Verifies that render_message calls st.chat_message with correct role and content."""
-        from streamlit_app.components.chat import render_message
-
         chat_message_mock = MagicMock()
         monkeypatch.setattr(st, "chat_message", chat_message_mock)
 
@@ -274,45 +275,8 @@ class TestStreamlitChatComponent:
         assert raw[4]["tool_calls"][0]["id"] == "c2"
 
 
-def run_message_history_tools():
-    """Wrapper function to test isolated message history rendering with tool role."""
-    import streamlit as st
-
-    from streamlit_app.components.chat import render_message_history
-
-    st.session_state.messages = [
-        {"role": "user", "content": "hello"},
-        {"role": "tools", "content": "tool call output"},
-        {"role": "assistant", "content": "final answer"},
-    ]
-    render_message_history()
-
-
-def run_execute_chat_request():
-    """Wrapper function to test execute_chat_request with dynamic streaming."""
-    from unittest.mock import patch
-
-    import streamlit as st
-
-    from streamlit_app.components.chat import render_streaming_response
-    from streamlit_app.components.processors.chat import ChatProcessor
-
-    st.session_state.messages = []
-    st.session_state.raw_messages = []
-
-    def mock_stream(payload):
-        yield ("tools", "🛠️ **[Tool Call] read_file**")
-        yield ("assistant", "Hello! Here is the file content.")
-
-    processor = ChatProcessor("http://mock-backend")
-    with patch.object(processor, "stream_response", side_effect=mock_stream):
-        render_streaming_response(processor, {"model": "test"})
-
-
 def test_render_message_history_roles():
     """Verifies that render_message_history renders custom 'tools' bubbles and standard bubbles."""
-    from streamlit.testing.v1 import AppTest
-
     at = AppTest.from_function(run_message_history_tools).run()
     assert not at.exception
 
@@ -328,8 +292,6 @@ def test_render_message_history_roles():
 
 def test_execute_chat_request_creates_separate_blocks():
     """Verifies that render_streaming_response creates separate tools and assistant chat message blocks."""
-    from streamlit.testing.v1 import AppTest
-
     at = AppTest.from_function(run_execute_chat_request).run()
     assert not at.exception
 
@@ -346,3 +308,6 @@ def test_execute_chat_request_creates_separate_blocks():
     assert messages[0]["content"] == "🛠️ **[Tool Call] read_file**"
     assert messages[1]["role"] == "assistant"
     assert messages[1]["content"] == "Hello! Here is the file content."
+
+
+

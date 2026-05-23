@@ -3,8 +3,18 @@ Unit tests for Streamlit system prompt presets.
 
 High-level role: Validates the correctness of the preset definitions.
 """
+
+from unittest.mock import patch
+
+from streamlit.testing.v1 import AppTest
+
 from streamlit_app.presets.attacks import ATTACK_TEMPLATES, FLAT_ATTACK_TEMPLATES
 from streamlit_app.presets.system import SYSTEM_PRESETS
+from tests.frontend.utils_streamlit_presets import (
+    run_attack_presets_selectbox,
+    run_presets_and_tools,
+    run_tool_selection,
+)
 
 
 def test_roger_bot_preset_exists():
@@ -77,33 +87,6 @@ def test_ignore_instructions_attack_template_exists():
     assert FLAT_ATTACK_TEMPLATES["Ignore Instructions 1"] == expected_payload
 
 
-def run_attack_presets_selectbox():
-    """Wrapper function to render the attack presets component.
-
-    High level role: Provides an isolated Streamlit context to render and test
-    the sidebar's category-based attack presets component.
-
-    Args:
-        None
-
-    Returns:
-        None: Renders directly to the Streamlit app testing context.
-
-    Raises:
-        None
-
-    Examples:
-        >>> run_attack_presets_selectbox()
-    """
-    import streamlit as st
-
-    from streamlit_app.components.sidebar import _render_attack_presets
-    with st.sidebar:
-        selected = _render_attack_presets()
-    st.write(f"Selected: {selected}")
-
-
-
 def test_render_attack_presets_ui():
     """Verifies that the attack presets UI renders a single hierarchical selector.
 
@@ -124,8 +107,6 @@ def test_render_attack_presets_ui():
     Examples:
         >>> test_render_attack_presets_ui()
     """
-    from streamlit.testing.v1 import AppTest
-
     # 1. Run initially: Selectbox should have 'None'
     at = AppTest.from_function(run_attack_presets_selectbox).run()
     assert not at.exception
@@ -134,7 +115,7 @@ def test_render_attack_presets_ui():
     attack_select = at.sidebar.selectbox[0]
     assert attack_select.label == "Load Attack"
     assert attack_select.value == "None"
-    
+
     # Assert headers and options exist in correct order
     assert "── Direct instruction override ──" in attack_select.options
     assert "   Ignore Instructions 1" in attack_select.options
@@ -164,35 +145,6 @@ def test_render_attack_presets_ui():
     assert len(at_clean.sidebar.button) == 0
 
 
-def run_tool_selection():
-    """Wrapper function to render the tool selection component in tests.
-
-    High level role: Provides an isolated Streamlit context to render the tool selection list.
-    Description: Integrates sidebar and renders the tool checkboxes, printing the result list.
-    How it works:
-    - Renders the _render_tool_selection component in sidebar.
-    - Prints the selected tools as markdown text.
-
-    Args:
-        None
-
-    Returns:
-        None
-
-    Raises:
-        None
-
-    Examples:
-        >>> run_tool_selection()
-    """
-    import streamlit as st
-
-    from streamlit_app.components.sidebar import _render_tool_selection
-    with st.sidebar:
-        selected, _ = _render_tool_selection()
-    st.write(f"Selected: {', '.join(selected)}")
-
-
 def test_render_tool_selection_ui():
     """Verifies that tool selection checkbox states are persistent across runs.
 
@@ -217,10 +169,6 @@ def test_render_tool_selection_ui():
     Examples:
         >>> test_render_tool_selection_ui()
     """
-    from unittest.mock import patch
-
-    from streamlit.testing.v1 import AppTest
-
     mock_tools = [
         {"type": "function", "function": {"name": "fetch_url"}},
         {"type": "function", "function": {"name": "get_env"}},
@@ -233,28 +181,14 @@ def test_render_tool_selection_ui():
         assert len(at.sidebar.checkbox) == 3
         assert at.sidebar.checkbox[0].label == "fetch_url"
         assert at.sidebar.checkbox[0].value
- 
+
         at.sidebar.checkbox[2].uncheck().run()
         assert not at.exception
-        
+
         assert not at.sidebar.checkbox[2].value
         assert not at.session_state["tool_selections"]["read_file"]
         assert "read_file" not in at.markdown[0].value
         assert "fetch_url" in at.markdown[0].value
-
-
-def run_presets_and_tools():
-    """Wrapper function to render both system presets and tool selections in tests."""
-    import streamlit as st
-
-    from streamlit_app.components.sidebar import _render_system_presets, _render_tool_selection
-
-    with st.sidebar:
-        prompt = _render_system_presets()
-        selected, _ = _render_tool_selection()
-
-    st.write(f"Prompt: {prompt}")
-    st.write(f"Selected: {', '.join(selected)}")
 
 
 def test_system_preset_tool_synchronization():
@@ -282,10 +216,6 @@ def test_system_preset_tool_synchronization():
     Raises:
         AssertionError: If system prompt or checkbox selections do not synchronize correctly.
     """
-    from unittest.mock import patch
-
-    from streamlit.testing.v1 import AppTest
-
     mock_tools = [
         {"type": "function", "function": {"name": "fetch_url"}},
         {"type": "function", "function": {"name": "send_email"}},
@@ -299,10 +229,10 @@ def test_system_preset_tool_synchronization():
         at = AppTest.from_function(run_presets_and_tools).run()
         assert not at.exception
 
-        # Default preset selected: all tools checked
+        # Default preset selected: no tools checked
         assert at.sidebar.selectbox[0].value == "Default"
         for i in range(6):
-            assert at.sidebar.checkbox[i].value
+            assert not at.sidebar.checkbox[i].value
 
         # Switch to Librarian AI: only list_users should be checked
         at.sidebar.selectbox[0].select("Librarian AI").run()
@@ -327,8 +257,3 @@ def test_system_preset_tool_synchronization():
         assert at.sidebar.checkbox[3].value  # execute_shell_command
         assert at.sidebar.checkbox[4].value  # get_env
         assert not at.sidebar.checkbox[5].value  # list_users
-
-
-
-
-

@@ -1,52 +1,20 @@
+"""
+Unit tests for Streamlit Observability component rendering and detail formats.
+
+High level role: Asserts proper rendering of safe/unsafe security traces, dynamic badges,
+formatting of tool arguments, and export integrations.
+"""
+
 import json
 
 from streamlit.testing.v1 import AppTest
 
-from streamlit_app.components.observability import render_formatted_detail
-
-
-def run_observability_safe():
-    """
-    Wrapper function to test isolated observability safe security trace rendering.
-
-    High level role: Simulates rendering of a safe security trace in Streamlit.
-
-    Arguments:
-        None
-
-    Returns:
-        None
-    """
-    from streamlit_app.components.observability import render_formatted_detail
-
-    log = {
-        "time": "12:00:00",
-        "type": "SECURITY",
-        "data": {"risk_score": 0.45, "target": "tool_execute_shell_command", "value": "Safe"},
-    }
-    render_formatted_detail(log)
-
-
-def run_observability_unsafe():
-    """
-    Wrapper function to test isolated observability high-risk security trace rendering.
-
-    High level role: Simulates rendering of a high-risk security trace in Streamlit.
-
-    Arguments:
-        None
-
-    Returns:
-        None
-    """
-    from streamlit_app.components.observability import render_formatted_detail
-
-    log = {
-        "time": "12:00:00",
-        "type": "SECURITY",
-        "data": {"risk_score": 0.95, "target": "user_prompt", "value": "High risk prompt"},
-    }
-    render_formatted_detail(log)
+from streamlit_app.components.processors.observability import ObservabilityProcessor
+from tests.frontend.utils_streamlit_observability import (
+    run_observability_conversation_history,
+    run_observability_safe,
+    run_observability_unsafe,
+)
 
 
 def test_observability_safe_rendering():
@@ -116,34 +84,6 @@ def test_observability_unsafe_rendering():
     assert "High risk of prompt injection detected" in at.warning[0].value
 
 
-def run_observability_conversation_history():
-    """
-    Wrapper function to test rendering of a request log containing structured conversation history.
-    """
-    from streamlit_app.components.observability import render_formatted_detail
-
-    log = {
-        "time": "12:00:00",
-        "type": "REQUEST",
-        "data": {
-            "model": "gemma",
-            "messages": [
-                {"role": "user", "content": "execute command ls"},
-                {
-                    "role": "assistant",
-                    "content": "",
-                    "tool_calls": [
-                        {"function": {"name": "execute_shell_command", "arguments": {"command": "ls"}}}
-                    ],
-                },
-                {"role": "tool", "name": "execute_shell_command", "content": "file1.txt\nfile2.txt"},
-                {"role": "assistant", "content": "Here is the list of files."},
-            ],
-        },
-    }
-    render_formatted_detail(log)
-
-
 def test_observability_conversation_history_rendering():
     """
     Verifies that the conversation history under REQUEST traces renders tool calls,
@@ -167,8 +107,6 @@ def test_observability_conversation_history_rendering():
 
 def test_observability_processor_export():
     """Verifies that format_export_payload serializes message history lists correctly."""
-    from streamlit_app.components.processors.observability import ObservabilityProcessor
-
     proc = ObservabilityProcessor()
     messages = [{"role": "user", "content": "hello"}]
 
@@ -183,9 +121,6 @@ def test_observability_processor_export():
 
 def test_observability_processor_security_status():
     """Verifies that risk scores and labels yield appropriate badge categories."""
-
-    from streamlit_app.components.processors.observability import ObservabilityProcessor
-
     proc = ObservabilityProcessor()
 
     # 1. Safe status
@@ -213,8 +148,6 @@ def test_observability_processor_security_status():
 
 def test_observability_processor_arguments_formatting():
     """Verifies format_tool_arguments handles strings and nested dictionary serialization."""
-    from streamlit_app.components.processors.observability import ObservabilityProcessor
-
     proc = ObservabilityProcessor()
 
     # Nested Dict arguments
@@ -237,8 +170,6 @@ def test_observability_processor_security_status_dynamic():
     Examples:
         >>> test_observability_processor_security_status_dynamic()
     """
-    from streamlit_app.components.processors.observability import ObservabilityProcessor
-
     proc = ObservabilityProcessor()
 
     # 1. Dynamic Safe status
@@ -272,4 +203,3 @@ def test_observability_processor_security_status_dynamic():
     assert score_p == 65.0
     assert summary == "Medium Risk"
     assert badge == "red"  # Because score > 0.5
-
