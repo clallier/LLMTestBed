@@ -240,8 +240,7 @@ def _render_tool_selection() -> Tuple[List[str], List[Dict[str, Any]]]:
     How it works:
     - Queries the backend tools registry.
     - Initializes the custom 'tool_selections' persistent dictionary in session state.
-    - Iterates over available tools, rendering checkboxes initialized with saved states.
-    - Updates persistent states and returns selected names alongside full tool schemas.
+    - Renders tools in rows of 2 columns, preserving index order and state.
 
     Args:
         None
@@ -263,12 +262,46 @@ def _render_tool_selection() -> Tuple[List[str], List[Dict[str, Any]]]:
         st.session_state.tool_selections = {}
 
     if available_tools:
-        for tool in available_tools:
-            name = tool["function"]["name"]
-            current_val = st.session_state.tool_selections.setdefault(name, True)
-            checked = st.checkbox(name, value=current_val, key=f"tool_check_{name}")
-            st.session_state.tool_selections[name] = checked
-            if checked:
-                selected_tool_names.append(name)
+        for i in range(0, len(available_tools), 2):
+            cols = st.columns(2)
+            n1 = available_tools[i]["function"]["name"]
+            if _render_tool_checkbox(n1, cols[0]):
+                selected_tool_names.append(n1)
+
+            if i + 1 < len(available_tools):
+                n2 = available_tools[i + 1]["function"]["name"]
+                if _render_tool_checkbox(n2, cols[1]):
+                    selected_tool_names.append(n2)
 
     return selected_tool_names, available_tools
+
+
+def _render_tool_checkbox(name: str, col: Any) -> bool:
+    """Renders a single tool checkbox inside the specified Streamlit column.
+
+    High level role: Renders a single tool checkbox widget inside a column.
+    Description: Resolves checkbox default state and renders a checkbox widget inside
+    the target column layout, persisting the selection back to st.session_state.
+    How it works:
+    - Retreives default or existing state from tool_selections.
+    - Renders the checkbox using Streamlit's column context manager.
+    - Updates session state value and returns checked status.
+
+    Args:
+        name (str): The name of the mock tool.
+        col (Any): The Streamlit column layout component to render within.
+
+    Returns:
+        bool: True if the checkbox is checked, False otherwise.
+
+    Raises:
+        None
+
+    Examples:
+        >>> checked = _render_tool_checkbox("read_file", col)
+    """
+    val = st.session_state.tool_selections.setdefault(name, True)
+    with col:
+        checked = st.checkbox(name, value=val, key=f"tool_check_{name}")
+    st.session_state.tool_selections[name] = checked
+    return checked
