@@ -101,8 +101,8 @@ def test_build_ollama_payload_with_system_and_tools():
         system="You are a helper",
         tools=[
             {"type": "function", "function": {"name": "fetch_url"}},
-            {"type": "function", "function": {"name": "get_env"}}
-        ]
+            {"type": "function", "function": {"name": "get_env"}},
+        ],
     )
     payload = build_ollama_payload(request, stream=False)
 
@@ -138,7 +138,7 @@ def test_build_ollama_payload_with_send_email_and_fetch_url():
         tools=[
             {"type": "function", "function": {"name": "send_email"}},
             {"type": "function", "function": {"name": "fetch_url"}},
-        ]
+        ],
     )
     payload = build_ollama_payload(request, stream=False)
 
@@ -146,3 +146,47 @@ def test_build_ollama_payload_with_send_email_and_fetch_url():
     assert payload["messages"][0]["role"] == "system"
     assert payload["messages"][0]["content"] == "You are an agent\n-tools: send_email, fetch_url"
 
+
+def test_build_ollama_payload_with_real_tools_definitions():
+    """Verifies that build_ollama_payload correctly structures real tool schemas.
+
+    High level role: Validates the payload builder maps rich tool schemas correctly.
+    Description: Imports actual TOOLS from tool_registry, constructs a request,
+    and asserts that detailed descriptions and arguments are preserved in payload['tools'].
+    How it works:
+    - Imports real TOOLS definitions list.
+    - Builds ChatRequest using the real TOOLS list.
+    - Generates payload using build_ollama_payload.
+    - Asserts that all tools (e.g., send_email and fetch_url) have correct type and function properties.
+
+    Args:
+        None
+
+    Returns:
+        None
+
+    Raises:
+        AssertionError: If any tool schema assertions fail.
+
+    Examples:
+        >>> test_build_ollama_payload_with_real_tools_definitions()
+    """
+    from backend.core.tool_registry import TOOLS
+
+    req = ChatRequest(
+        model="gemma",
+        messages=[ChatMessage(role="user", content="Hello")],
+        system="System prompt",
+        tools=TOOLS,
+    )
+    payload = build_ollama_payload(req)
+    assert "tools" in payload
+    assert len(payload["tools"]) == len(TOOLS)
+
+    email_tool = next(t for t in payload["tools"] if t["function"]["name"] == "send_email")
+    assert email_tool["function"]["description"] == "Send an email to an external recipient."
+    assert "to" in email_tool["function"]["parameters"]["properties"]
+    assert email_tool["function"]["parameters"]["required"] == ["to", "subject", "body"]
+
+    url_tool = next(t for t in payload["tools"] if t["function"]["name"] == "fetch_url")
+    assert "url" in url_tool["function"]["parameters"]["properties"]

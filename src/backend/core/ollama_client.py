@@ -11,7 +11,6 @@ import os
 import httpx
 
 from backend.core.config import OLLAMA_BASE_URL
-from backend.core.ollama_client_data import TEST_CHUNKS_FIRST_TURN, TEST_CHUNKS_SECOND_TURN
 
 logger = logging.getLogger(__name__)
 
@@ -104,14 +103,40 @@ class OllamaClient:
             logger.error("Error in chat_stream: %s", e)
             yield f'{{"error": "{str(e)}"}}'
 
+    def _load_test_chunks(self) -> tuple[list, list]:
+        """Loads choreographed sequence of mock chunks from disk.
+
+        High level role: Reads E2E test data assets dynamically from the tests directory.
+        Description: Resolves the local absolute path of the mock JSON file relative to
+        the codebase files and parses the first/second turn datasets.
+
+        Returns:
+            tuple[list, list]: Tuple containing first-turn and second-turn mock chunk lists.
+        """
+        curr_dir = os.path.dirname(os.path.abspath(__file__))
+        json_path = os.path.abspath(
+            os.path.join(curr_dir, "..", "..", "..", "tests", "backend", "mocks", "ollama_client_data.json")
+        )
+        with open(json_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data["TEST_CHUNKS_FIRST_TURN"], data["TEST_CHUNKS_SECOND_TURN"]
+
     async def _get_test_chunks(self, payload: dict):
-        """Yields a choreographed sequence of chunks for E2E testing."""
-        # Check if we are in the second step of a tool call loop
-        messages = payload.get("messages", [])
-        has_tool_results = any(m.get("role") == "tool" for m in messages)
+        """Yields a choreographed sequence of chunks for E2E testing.
 
-        chunks = TEST_CHUNKS_SECOND_TURN if has_tool_results else TEST_CHUNKS_FIRST_TURN
+        High level role: Handles asynchronous streaming of mock E2E data chunks.
+        Description: Determines current session progress to select the appropriate dataset
+        and streams them with micro-delays.
 
+        Args:
+            payload (dict): Stream API request payload containing the conversation history.
+
+        Yields:
+            str: Trailing-newline terminated NDJSON data stream chunks.
+        """
+        has_tool = any(m.get("role") == "tool" for m in payload.get("messages", []))
+        first_turn, second_turn = self._load_test_chunks()
+        chunks = second_turn if has_tool else first_turn
         for chunk in chunks:
             await asyncio.sleep(0.1)
             yield json.dumps(chunk) + "\n"

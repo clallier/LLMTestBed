@@ -53,9 +53,82 @@ def _render_model_selection() -> str:
 
 
 def _render_system_presets() -> str:
-    """Renders system prompt presets and the editable text area."""
+    """Renders system prompt presets dropdown and an editable text area.
+
+    High level role: Renders system prompt presets dropdown and an editable text area.
+    Description: Integrates with system prompt presets to preselect tool states and
+    populate default system prompts inside the text area workspace.
+    How it works:
+    - Renders selectbox of preset keys.
+    - Compares current selection against stored session state to detect changes.
+    - If a preset changes, programmatically resets and populates the checkbox session states.
+    - Renders and returns the updated text_area prompt content.
+
+    Args:
+        None
+
+    Returns:
+        str: Currently input or edited system prompt content.
+
+    Raises:
+        None
+
+    Examples:
+        >>> prompt = _render_system_presets()
+    """
+    if "current_preset" not in st.session_state:
+        st.session_state.current_preset = None
+
     selected_preset = st.selectbox("System Preset", list(SYSTEM_PRESETS.keys()))
-    return st.text_area("System Prompt", SYSTEM_PRESETS[selected_preset], height=150)
+    preset_data = SYSTEM_PRESETS[selected_preset]
+
+    if st.session_state.current_preset != selected_preset:
+        st.session_state.current_preset = selected_preset
+        _update_preset_tools(preset_data.get("selected_tools", []))
+
+    return st.text_area(
+        "System Prompt",
+        preset_data["system_prompt"],
+        height=120,
+        label_visibility="collapsed",
+    )
+
+
+def _update_preset_tools(selected_tools: str | List[str]) -> None:
+    """Updates session state tool selections to match the active system preset.
+
+    High level role: Updates system state tool checks.
+    Description: Iterates through all available system tools, setting selected
+    tools to True and others to False in both widget key and cache states.
+    How it works:
+    - Converts input string to a list of strings if a single tool is passed.
+    - Fetches the available tools to ensure full coverage.
+    - Configures session state tool_selections dictionary and widget keys.
+
+    Args:
+        selected_tools (str | List[str]): A tool name or list of tool names preselected by the preset.
+
+    Returns:
+        None
+
+    Raises:
+        None
+
+    Examples:
+        >>> _update_preset_tools("list_users")
+    """
+    if "tool_selections" not in st.session_state:
+        st.session_state.tool_selections = {}
+
+    tools_list = [selected_tools] if isinstance(selected_tools, str) else selected_tools
+    available_tools = fetch_tools()
+
+    if available_tools:
+        for tool in available_tools:
+            name = tool["function"]["name"]
+            is_active = (name in tools_list)
+            st.session_state.tool_selections[name] = is_active
+            st.session_state[f"tool_check_{name}"] = is_active
 
 
 def _build_attack_options() -> List[str]:

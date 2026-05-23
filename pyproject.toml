@@ -50,8 +50,8 @@ line-length = 100
 target-version = "py312"
 
 [tool.ruff.lint]
-# E: Pycodestyle (Style), F: Pyflakes (Bugs), B: Bugbear (Smells), I: Isort (Imports), S: Bandit (Security)
-select = ["E", "F", "B", "I", "S"]
+# E: Pycodestyle (Style), F: Pyflakes (Bugs), B: Bugbear (Smells), I: Isort (Imports), S: Bandit (Security), ISC: Implicit String Concatenation
+select = ["E", "F", "B", "I", "S", "ISC"]
 # E501: Line too long (allows long natural-language prompts and base64 security templates)
 # B007: Unused loop variable (allows descriptive unpacking variables in dictionary iterations)
 ignore = ["E501", "B007"]

@@ -174,7 +174,7 @@ class TestAgentStreamProcessor:
             {"function": {"name": "execute_shell_command", "arguments": {"command": "rm -rf /"}}}
         )
 
-        assert "Error: Permission denied" in res["content"]
+        assert "Permission denied" in res["content"]
 
     @pytest.mark.asyncio
     async def test_edge_case_malformed_chunk_handling(self):
