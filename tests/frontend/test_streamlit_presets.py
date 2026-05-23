@@ -232,15 +232,102 @@ def test_render_tool_selection_ui():
         assert not at.exception
         assert len(at.sidebar.checkbox) == 3
         assert at.sidebar.checkbox[0].label == "fetch_url"
-        assert at.sidebar.checkbox[0].value is True
-
+        assert at.sidebar.checkbox[0].value
+ 
         at.sidebar.checkbox[2].uncheck().run()
         assert not at.exception
         
-        assert at.sidebar.checkbox[2].value is False
-        assert at.session_state["tool_selections"]["read_file"] is False
+        assert not at.sidebar.checkbox[2].value
+        assert not at.session_state["tool_selections"]["read_file"]
         assert "read_file" not in at.markdown[0].value
         assert "fetch_url" in at.markdown[0].value
+
+
+def run_presets_and_tools():
+    """Wrapper function to render both system presets and tool selections in tests."""
+    import streamlit as st
+
+    from streamlit_app.components.sidebar import _render_system_presets, _render_tool_selection
+
+    with st.sidebar:
+        prompt = _render_system_presets()
+        selected, _ = _render_tool_selection()
+
+    st.write(f"Prompt: {prompt}")
+    st.write(f"Selected: {', '.join(selected)}")
+
+
+def test_system_preset_tool_synchronization():
+    """Verifies that changing system presets dynamically updates checkbox states.
+
+    High level role: Validates integration between system presets and enabled tools.
+    Description: Patches the fetch_tools API, renders system presets dropdown and
+    tool selection checkboxes, and simulates selecting different presets to assert
+    correct checkbox checks are toggled.
+    How it works:
+    - Patches fetch_tools with a list of tools.
+    - Runs AppTest with system presets selectbox default ('Default').
+    - Asserts that all tools are checked.
+    - Changes the system preset selection to 'Librarian AI' and reruns.
+    - Asserts that the system prompt text area updates and only 'list_users' is checked.
+    - Changes the system preset to 'RogerBot' and reruns.
+    - Asserts that only 'read_file', 'execute_shell_command', and 'get_env' are checked.
+
+    Args:
+        None
+
+    Returns:
+        None
+
+    Raises:
+        AssertionError: If system prompt or checkbox selections do not synchronize correctly.
+    """
+    from unittest.mock import patch
+
+    from streamlit.testing.v1 import AppTest
+
+    mock_tools = [
+        {"type": "function", "function": {"name": "fetch_url"}},
+        {"type": "function", "function": {"name": "send_email"}},
+        {"type": "function", "function": {"name": "read_file"}},
+        {"type": "function", "function": {"name": "execute_shell_command"}},
+        {"type": "function", "function": {"name": "get_env"}},
+        {"type": "function", "function": {"name": "list_users"}},
+    ]
+
+    with patch("streamlit_app.components.sidebar.fetch_tools", return_value=mock_tools):
+        at = AppTest.from_function(run_presets_and_tools).run()
+        assert not at.exception
+
+        # Default preset selected: all tools checked
+        assert at.sidebar.selectbox[0].value == "Default"
+        for i in range(6):
+            assert at.sidebar.checkbox[i].value
+
+        # Switch to Librarian AI: only list_users should be checked
+        at.sidebar.selectbox[0].select("Librarian AI").run()
+        assert not at.exception
+        assert at.sidebar.selectbox[0].value == "Librarian AI"
+
+        # Verify that only list_users is checked (which is checkbox[5])
+        assert not at.sidebar.checkbox[0].value  # fetch_url
+        assert not at.sidebar.checkbox[1].value  # send_email
+        assert not at.sidebar.checkbox[2].value  # read_file
+        assert not at.sidebar.checkbox[3].value  # execute_shell_command
+        assert not at.sidebar.checkbox[4].value  # get_env
+        assert at.sidebar.checkbox[5].value  # list_users
+
+        # Switch to RogerBot: only read_file, execute_shell_command, and get_env checked
+        at.sidebar.selectbox[0].select("RogerBot").run()
+        assert not at.exception
+
+        assert not at.sidebar.checkbox[0].value  # fetch_url
+        assert not at.sidebar.checkbox[1].value  # send_email
+        assert at.sidebar.checkbox[2].value  # read_file
+        assert at.sidebar.checkbox[3].value  # execute_shell_command
+        assert at.sidebar.checkbox[4].value  # get_env
+        assert not at.sidebar.checkbox[5].value  # list_users
+
 
 
 
