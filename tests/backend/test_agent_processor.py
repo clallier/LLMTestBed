@@ -1,10 +1,16 @@
+"""Unit tests for the AgentStreamProcessor class.
+
+High level role: Validates the agent loop orchestration — security prompt assessment,
+stream cleaning, parallel tool integration, and recursion depth limiting.
+Tool-specific dispatch tests live in test_tool_executor.py.
+"""
+
 import json
 from typing import Any, AsyncGenerator, Dict
 
 import pytest
 
 from backend.core.agent_processor import AgentStreamProcessor
-from backend.core.cleaner import clean_garbage_prefix
 from backend.core.ollama_client import OllamaClient
 from backend.schemas.chat import ChatMessage, ChatRequest
 
@@ -12,17 +18,15 @@ from .mocks.ollama_client import MockOllamaClient
 
 
 class TestAgentStreamProcessor:
-    """
-    Unit tests for the AgentStreamProcessor class covering normal and edge cases.
+    """Unit tests for AgentStreamProcessor covering orchestration and edge cases.
 
-    High level role: Validates the end-to-end stream processing, safety assessments,
-    and parallel tool executions.
+    High level role: Validates the end-to-end stream processing, security assessments,
+    and integration with parallel tool execution via ToolExecutor.
     """
 
     @pytest.mark.asyncio
     async def test_nominal_no_tools(self):
-        """
-        Verifies nominal stream processing when the agent doesn't invoke any tools.
+        """Verifies nominal stream processing when the agent doesn't invoke any tools.
 
         Examples:
             >>> test = TestAgentStreamProcessor()
@@ -34,24 +38,17 @@ class TestAgentStreamProcessor:
         ]
         mock_client = MockOllamaClient(mock_chunks)
         processor = AgentStreamProcessor(client=mock_client)
-
         request = ChatRequest(model="test-model", messages=[ChatMessage(role="user", content="hi")])
 
-        # Read the entire processed stream
         output_chunks = []
         async for chunk in processor.process_stream(request, []):
             output_chunks.append(json.loads(chunk.strip()))
 
-        # We expect:
-        # 1. The initial user prompt security assessment packet
-        # 2. Content chunks
+        # Expect: security assessment + content chunks
         assert len(output_chunks) >= 3
-
-        # Check initial security analysis
         assert "security" in output_chunks[0]
         assert output_chunks[0]["security"]["target"] == "user_prompt"
 
-        # Check aggregated assistant content
         content = "".join(
             c["message"]["content"]
             for c in output_chunks
@@ -61,14 +58,12 @@ class TestAgentStreamProcessor:
 
     @pytest.mark.asyncio
     async def test_parallel_tools(self):
-        """
-        Verifies nominal stream processing when the agent triggers parallel tool calls.
+        """Verifies stream processing when the agent triggers parallel tool calls.
 
         Examples:
             >>> test = TestAgentStreamProcessor()
             >>> await test.test_parallel_tools()
         """
-        # Phase 1 chunks: The agent generated 2 tool calls
         tool_call_chunks = [
             json.dumps(
                 {
@@ -95,14 +90,10 @@ class TestAgentStreamProcessor:
                 }
             )
         ]
-
-        # Phase 2 chunks: Final response after receiving tool results
         final_chunks = [
             json.dumps({"message": {"role": "assistant", "content": "Tool results received."}})
         ]
 
-        # A mock client that handles the recursive chat stream calls:
-        # First call gets parallel tool calls; second recursive call gets final assistant text.
         class RecursiveMockClient(OllamaClient):
             def __init__(self):
                 super().__init__()
@@ -116,7 +107,6 @@ class TestAgentStreamProcessor:
 
         mock_client = RecursiveMockClient()
         processor = AgentStreamProcessor(client=mock_client)
-
         request = ChatRequest(
             model="test-model",
             messages=[ChatMessage(role="user", content="run sensitive diagnostics")],
@@ -127,10 +117,8 @@ class TestAgentStreamProcessor:
         async for chunk in processor.process_stream(request, messages_history):
             output_chunks.append(json.loads(chunk.strip()))
 
-        # Verify that parallel tools were simulated, output logs yielded, and final text received
         log_types = []
         tool_response_names = set()
-
         for c in output_chunks:
             if "security" in c:
                 log_types.append("SECURITY")
@@ -140,14 +128,6 @@ class TestAgentStreamProcessor:
             elif "message" in c:
                 log_types.append("MESSAGE")
 
-        # We expect:
-        # - SECURITY (initial user prompt risk check)
-        # - MESSAGE (the tool calls payload)
-        # - TOOL_RESPONSE (for read_file)
-        # - SECURITY (tool response safety risk check)
-        # - TOOL_RESPONSE (for execute_shell_command)
-        # - SECURITY (tool response safety risk check)
-        # - MESSAGE (final response)
         assert "SECURITY" in log_types
         assert "TOOL_RESPONSE" in log_types
         assert "read_file" in tool_response_names
@@ -160,27 +140,9 @@ class TestAgentStreamProcessor:
             elif tr["name"] == "execute_shell_command":
                 assert tr["content"] == "prod_agent_user"
 
-    def test_edge_case_destructive_command_blocking(self):
-        """
-        Verifies that destructive shell commands like 'rm' or 'mv' are securely blocked.
-
-        Examples:
-            >>> test = TestAgentStreamProcessor()
-            >>> test.test_edge_case_destructive_command_blocking()
-        """
-        processor = AgentStreamProcessor()
-
-        # Invoke execute_shell_command with a destructive command
-        res = processor.run_tool(
-            {"function": {"name": "execute_shell_command", "arguments": {"command": "rm -rf /"}}}
-        )
-
-        assert "Permission denied" in res["content"]
-
     @pytest.mark.asyncio
     async def test_edge_case_malformed_chunk_handling(self):
-        """
-        Verifies that malformed JSON chunks are gracefully ignored without throwing exceptions.
+        """Verifies that malformed JSON chunks are gracefully ignored without throwing exceptions.
 
         Examples:
             >>> test = TestAgentStreamProcessor()
@@ -192,14 +154,12 @@ class TestAgentStreamProcessor:
         ]
         mock_client = MockOllamaClient(mock_chunks)
         processor = AgentStreamProcessor(client=mock_client)
-
         request = ChatRequest(model="test-model", messages=[ChatMessage(role="user", content="hi")])
 
         output_chunks = []
         async for chunk in processor.process_stream(request, []):
             output_chunks.append(json.loads(chunk.strip()))
 
-        # The malformed chunk should be skipped, and the nominal chunk should render correctly
         content = "".join(
             c["message"]["content"]
             for c in output_chunks
@@ -207,120 +167,13 @@ class TestAgentStreamProcessor:
         )
         assert content == "Passed!"
 
-    def test_tool_response_name_field(self):
-        """
-        Verifies that tool responses contain the required 'name' field in compliance with standard protocols.
-
-        High level role: Asserts presence of required API protocol fields to prevent multi-step reasoning failures.
-
-        Examples:
-            >>> test = TestAgentStreamProcessor()
-            >>> test.test_tool_response_name_field()
-        """
-        processor = AgentStreamProcessor()
-        res = processor.run_tool(
-            {"function": {"name": "read_file", "arguments": {"filename": ".env"}}}
-        )
-
-        assert res["role"] == "tool"
-        assert res["name"] == "read_file"
-        assert "DB_URL" in res["content"]
-
-    def test_tool_call_id_propagation_standard(self):
-        """
-        Verifies that tool_call_id is successfully propagated during nominal tool executions.
-        """
-        processor = AgentStreamProcessor()
-        res = processor.run_tool(
-            {
-                "id": "call_nom_123",
-                "function": {"name": "read_file", "arguments": {"filename": ".env"}},
-            }
-        )
-
-        assert res["role"] == "tool"
-        assert res["name"] == "read_file"
-        assert res["tool_call_id"] == "call_nom_123"
-        assert "DB_URL" in res["content"]
-
-    @pytest.mark.asyncio
-    async def test_tool_call_id_propagation_exception(self):
-        """
-        Verifies that tool_call_id is successfully propagated inside exception payloads.
-        """
-        processor = AgentStreamProcessor()
-
-        # Stub run_tool to throw an exception
-        def crash_run_tool(tool_call):
-            raise RuntimeError("Simulated crash")
-
-        processor.run_tool = crash_run_tool
-
-        tool_calls = [
-            {
-                "id": "call_err_123",
-                "function": {"name": "execute_shell_command", "arguments": {"command": "ls"}},
-            }
-        ]
-
-        messages = []
-        chunks = []
-        async for chunk in processor._execute_tools_and_stream_results(tool_calls, messages):
-            chunks.append(json.loads(chunk.strip()))
-
-        assert len(messages) == 1
-        assert messages[0]["role"] == "tool"
-        assert messages[0]["tool_call_id"] == "call_err_123"
-        assert "Simulated crash" in messages[0]["content"]
-
-    def test_clean_garbage_prefix_utility(self):
-        """Validates the clean_garbage_prefix utility under different stray prefix variants.
-
-        High level role: Unit test verifying prefix cleaning utility logic.
-        Description: Checks that various malformed JSON structures and stray delimiters
-        are successfully removed while preserving clean text.
-        How it works: Passes multiple garbage-prefixed strings into clean_garbage_prefix
-        and asserts the correct sanitized output is returned.
-
-        Args:
-            None
-
-        Returns:
-            None
-
-        Raises:
-            AssertionError: If output text does not match the expected clean string.
-
-        Examples:
-            >>> test = TestAgentStreamProcessor()
-            >>> test.test_clean_garbage_prefix_utility()
-        """
-        assert clean_garbage_prefix('"}; [{"name": "get_env"}]Here is the key') == "Here is the key"
-        assert clean_garbage_prefix('; }, {"name": "test"}Hello') == "Hello"
-        assert clean_garbage_prefix('   ] \n};   {"a": 1}   Result') == "Result"
-        assert clean_garbage_prefix('{"test": "nested"}Normal text') == "Normal text"
-        assert clean_garbage_prefix('No prefix at all') == "No prefix at all"
-        assert clean_garbage_prefix('{"bootstrap_instructions": "...", "env_vars": "..."}') == '{"bootstrap_instructions": "...", "env_vars": "..."}'
-        assert clean_garbage_prefix('[{"key": "value"}]') == '[{"key": "value"}]'
-
     @pytest.mark.asyncio
     async def test_stream_cleaning_e2e_mock(self):
-        """Simulates structured JSON prefix output chunk-by-chunk to verify prefix cleaning.
+        """Simulates structured JSON-prefix output chunk-by-chunk to verify prefix cleaning.
 
-        High level role: Integration test verifying end-to-end stream parsing.
+        High level role: Integration test verifying end-to-end stream sanitization.
         Description: Replaces client stream with mock chunks containing JSON garbage and
         validates that AgentStreamProcessor correctly cleans the stream in-place.
-        How it works: Sets up a mock client yielding chunks, runs process_stream, and
-        asserts the final combined message contains only cleaned text.
-
-        Args:
-            None
-
-        Returns:
-            None
-
-        Raises:
-            AssertionError: If cleaned output is missing expected text or retains garbage.
 
         Examples:
             >>> test = TestAgentStreamProcessor()
@@ -339,12 +192,11 @@ class TestAgentStreamProcessor:
         async for chunk in processor.process_stream(request, []):
             output_chunks.append(json.loads(chunk.strip()))
 
-        content_chunks = [
+        full_content = "".join(
             c["message"]["content"]
             for c in output_chunks
             if "message" in c and "content" in c["message"]
-        ]
-        full_content = "".join(content_chunks)
+        )
         assert "Here is the key" in full_content
         assert "get_env" not in full_content
 
@@ -368,10 +220,7 @@ class TestAgentStreamProcessor:
                     "tool_calls": [
                         {
                             "type": "function",
-                            "function": {
-                                "name": "get_env",
-                                "arguments": {},
-                            },
+                            "function": {"name": "get_env", "arguments": {}},
                         }
                     ],
                 }
@@ -389,7 +238,10 @@ class TestAgentStreamProcessor:
 
         mock_client = LoopMockClient()
         processor = AgentStreamProcessor(client=mock_client)
-        request = ChatRequest(model="test-model", messages=[ChatMessage(role="user", content="loop please")])
+        request = ChatRequest(
+            model="test-model",
+            messages=[ChatMessage(role="user", content="loop please")],
+        )
 
         history = [{"role": "user", "content": "loop please"}]
         output_chunks = []
@@ -404,5 +256,7 @@ class TestAgentStreamProcessor:
 
         tool_responses = [c for c in output_chunks if "tool_response" in c]
         assert len(tool_responses) > 0
-        assert "maximum tool recursion depth (5) was reached" in tool_responses[-1]["tool_response"]["content"]
-
+        assert (
+            "maximum tool recursion depth (5) was reached"
+            in tool_responses[-1]["tool_response"]["content"]
+        )

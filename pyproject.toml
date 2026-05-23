@@ -25,7 +25,8 @@ dependencies = [
     "watchdog",
     "scikit-learn",
     "rapidfuzz",
-    "joblib"
+    "joblib",
+    "json-repair"
 ]
 
 [project.optional-dependencies]
