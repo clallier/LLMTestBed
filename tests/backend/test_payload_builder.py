@@ -190,3 +190,29 @@ def test_build_ollama_payload_with_real_tools_definitions():
 
     url_tool = next(t for t in payload["tools"] if t["function"]["name"] == "fetch_url")
     assert "url" in url_tool["function"]["parameters"]["properties"]
+
+
+def test_build_ollama_payload_with_images():
+    """Verifies that build_ollama_payload correctly includes base64 image strings.
+
+    High level role: Validates image serialization in payload builder.
+    Description: Constructs a ChatRequest containing a user message with attached
+    base64 image strings, and asserts that the serialized output payload includes
+    the 'images' list properly without stripping it.
+    """
+    request = ChatRequest(
+        model="gemma",
+        messages=[
+            ChatMessage(
+                role="user",
+                content="What is in this picture?",
+                images=["base64_image_data_1", "base64_image_data_2"],
+            )
+        ],
+    )
+    payload = build_ollama_payload(request, stream=False)
+
+    assert len(payload["messages"]) == 1
+    assert payload["messages"][0]["role"] == "user"
+    assert payload["messages"][0]["content"] == "What is in this picture?"
+    assert payload["messages"][0]["images"] == ["base64_image_data_1", "base64_image_data_2"]

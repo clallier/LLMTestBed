@@ -17,6 +17,7 @@ class ChatMessage(BaseModel):
     """
     role: str
     content: str
+    images: Optional[List[str]] = None
 
 
 class ChatRequest(BaseModel):

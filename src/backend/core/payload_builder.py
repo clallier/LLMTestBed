@@ -3,14 +3,14 @@ Ollama Payload Builder Utility.
 
 High level role: Formats ChatRequest models into JSON schemas accepted by Ollama API.
 """
+
 from typing import Any, Dict, List, Optional
 
 from backend.schemas.chat import ChatRequest
 
 
 def format_system_prompt_with_tools(
-    system_prompt: Optional[str],
-    tools: Optional[List[Dict[str, Any]]]
+    system_prompt: Optional[str], tools: Optional[List[Dict[str, Any]]]
 ) -> Optional[str]:
     """Formats the system prompt by appending the list of activated tools.
 
@@ -43,9 +43,7 @@ def format_system_prompt_with_tools(
     if not system_prompt or not tools:
         return system_prompt
     tool_names = [
-        t["function"]["name"]
-        for t in tools
-        if "function" in t and "name" in t["function"]
+        t["function"]["name"] for t in tools if "function" in t and "name" in t["function"]
     ]
     if not tool_names:
         return system_prompt
@@ -83,8 +81,8 @@ def build_ollama_payload(request: ChatRequest, stream: bool = False) -> Dict[str
     """
     payload: Dict[str, Any] = {
         "model": request.model,
-        "messages": [msg.model_dump() for msg in request.messages],
-        "stream": stream
+        "messages": [msg.model_dump(exclude_none=True) for msg in request.messages],
+        "stream": stream,
     }
 
     # Inject system prompt at the very beginning of the message history if provided

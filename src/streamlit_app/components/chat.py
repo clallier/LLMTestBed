@@ -4,6 +4,8 @@ Chat bubble rendering component for the Streamlit Sandbox interface.
 High level role: Handles Streamlit UI layouts, bubble styling, and real-time streaming displays.
 All data processing and API coordinator structures are delegated to ChatProcessor.
 """
+
+import base64
 from typing import Any, Dict, List
 
 import streamlit as st
@@ -16,6 +18,7 @@ from streamlit_app.constants import AVATAR_TOOLS, ROLE_ASSISTANT, ROLE_TOOLS, ge
 def _get_processor() -> ChatProcessor:
     """Lazily instantiates the completions processor with the active backend URL."""
     return ChatProcessor(get_backend_url())
+
 
 # ==========================================
 # Public API (Rendering Logic)
@@ -43,6 +46,13 @@ def render_message(message: Dict[str, Any]):
     else:
         with st.chat_message(role):
             st.markdown(content)
+            if "images" in message and message["images"]:
+                for base64_image in message["images"]:
+                    try:
+                        img_bytes = base64.b64decode(base64_image)
+                        st.image(img_bytes, width=200)
+                    except Exception as e:  # pylint: disable=broad-exception-caught
+                        add_log("ERROR", {"message": f"Failed to render base64 image: {e}"})
 
 
 def render_message_history():
@@ -111,7 +121,7 @@ def process_assistant_response(
     selected_model: str,
     system_prompt: str,
     selected_tool_names: List[str],
-    available_tools: List[Dict[str, Any]]
+    available_tools: List[Dict[str, Any]],
 ):
     """
     Main completions trigger coordinating request payload compilation and visual rendering.
@@ -129,10 +139,7 @@ def process_assistant_response(
     """
     processor = _get_processor()
     payload = processor.build_chat_payload(
-        selected_model,
-        system_prompt,
-        selected_tool_names,
-        available_tools
+        selected_model, system_prompt, selected_tool_names, available_tools
     )
     add_log("REQUEST", payload)
 

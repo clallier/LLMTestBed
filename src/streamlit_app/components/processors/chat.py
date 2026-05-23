@@ -5,6 +5,7 @@ High level role: Handles non-rendering tasks such as payload building, stream pa
 state accumulation, and HTTP request coordination.
 """
 
+import base64
 import json
 from typing import Any, Dict, Generator, List, Optional, Tuple
 
@@ -39,6 +40,32 @@ class ChatProcessor:
     # ==========================================
     # Public API
     # ==========================================
+
+    @staticmethod
+    def encode_image_to_base64(image_file: Any) -> str:
+        """Encodes an uploaded image file into a base64 string.
+
+        High level role: Encodes image to base64.
+        Description: Reads bytes from the uploaded file and converts it into a standard UTF-8 base64 string.
+        How it works:
+        - Reads bytes using the file's read method.
+        - Encodes the bytes using base64.b64encode.
+        - Decodes the result to a UTF-8 string and returns it.
+
+        Args:
+            image_file (Any): The Streamlit UploadedFile object or file-like object.
+
+        Returns:
+            str: Base64-encoded representation of the image file.
+
+        Raises:
+            None
+
+        Examples:
+            >>> b64 = ChatProcessor.encode_image_to_base64(uploaded_file)
+        """
+        image_bytes = image_file.read()
+        return base64.b64encode(image_bytes).decode("utf-8")
 
     def build_chat_payload(
         self,

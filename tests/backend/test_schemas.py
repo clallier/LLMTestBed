@@ -10,6 +10,13 @@ def test_chat_message_valid():
     assert msg.content == "Hello"
 
 
+def test_chat_message_multimodal_valid():
+    msg = ChatMessage(role="user", content="Hello", images=["base64_image_data"])
+    assert msg.role == "user"
+    assert msg.content == "Hello"
+    assert msg.images == ["base64_image_data"]
+
+
 def test_chat_message_invalid():
     with pytest.raises(ValidationError):
         ChatMessage.model_validate({"role": "user"})
