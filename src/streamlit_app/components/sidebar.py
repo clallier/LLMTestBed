@@ -29,14 +29,29 @@ def render_sidebar() -> Tuple[str, str, List[str], List[Dict[str, Any]], str]:
         selected_tool_names, available_tools = _render_tool_selection()
         selected_attack = _render_attack_presets()
 
-        st.markdown("---")
-        if st.button("Clear History", type="secondary", use_container_width=True):
-            st.session_state.messages = []
-            st.session_state.raw_messages = []
-            st.session_state.logs = []
-            st.rerun()
+        _render_sidebar_footer()
 
         return selected_model, system_prompt, selected_tool_names, available_tools, selected_attack
+
+
+def _render_sidebar_footer() -> None:
+    """Renders the GitHub links and Clear History action button.
+
+    High level role: Renders sidebar links and clear action.
+    Description: Groups standard links and history clearing controls in the footer.
+    """
+    st.page_link(
+        "https://github.com/elder-plinius/L1B3RT4S",
+        label="Pliny's L1B3RT4S GitHub",
+        icon="⛓️‍💥",
+    )
+
+    st.markdown("---")
+    if st.button("Clear History", type="secondary", use_container_width=True):
+        st.session_state.messages = []
+        st.session_state.raw_messages = []
+        st.session_state.logs = []
+        st.rerun()
 
 
 def _render_model_selection() -> str:
@@ -126,7 +141,7 @@ def _update_preset_tools(selected_tools: str | List[str]) -> None:
     if available_tools:
         for tool in available_tools:
             name = tool["function"]["name"]
-            is_active = (name in tools_list)
+            is_active = name in tools_list
             st.session_state.tool_selections[name] = is_active
             st.session_state[f"tool_check_{name}"] = is_active
 
@@ -186,9 +201,7 @@ def _inject_payload(attack_name: str) -> None:
         >>> _inject_payload("Schema based request")
     """
     payload_content = FLAT_ATTACK_TEMPLATES[attack_name]
-    st.session_state.setdefault("messages", []).append(
-        {"role": "user", "content": payload_content}
-    )
+    st.session_state.setdefault("messages", []).append({"role": "user", "content": payload_content})
     st.session_state.setdefault("raw_messages", []).append(
         {"role": "user", "content": payload_content}
     )

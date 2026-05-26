@@ -1,3 +1,6 @@
+import json
+from unittest.mock import AsyncMock, patch
+
 import pytest
 
 from backend.core.tool_registry import (
@@ -8,6 +11,7 @@ from backend.core.tool_registry import (
     list_users,
     read_file,
     send_email,
+    web_search,
 )
 
 
@@ -32,7 +36,6 @@ def test_read_file():
     assert "DB_URL" in read_file("config.json")
     assert "LLM Security Testbed" in read_file("README.md")
     assert "No such file or directory" in read_file("other.txt")
-
 
 
 def test_send_email():
@@ -81,7 +84,6 @@ def test_execute_shell_command():
     assert "9099" in execute_shell_command("netstat -ant")
     assert "9099" in execute_shell_command("netstate -ant")
     assert "Linux" in execute_shell_command("uname -a")
-
 
 
 def test_fetch_url():
@@ -258,5 +260,24 @@ def test_tool_processor_class():
     assert "John" in tp.list_users()
 
 
+def test_web_search():
+    """Verifies that the web_search tool executes correctly.
 
+    High level role: Asserts wrapper execution and JSON serialization.
+    Description: Mocks the async ollama_client.web_search method to return
+    canned search results and validates that the synchronous wrapper runs it.
+    """
 
+    mock_res = {
+        "results": [{"title": "Test Title", "url": "https://test.com", "content": "Test content"}]
+    }
+    with patch(
+        "backend.core.ollama_client.ollama_client.web_search", new_callable=AsyncMock
+    ) as mock_search:
+        mock_search.return_value = mock_res
+
+        result_str = web_search("test query", max_results=3)
+        mock_search.assert_called_once_with("test query", 3)
+
+        parsed = json.loads(result_str)
+        assert parsed == mock_res

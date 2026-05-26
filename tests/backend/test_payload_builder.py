@@ -1,4 +1,3 @@
-
 from backend.core.payload_builder import build_ollama_payload, format_system_prompt_with_tools
 from backend.core.tool_registry import TOOLS
 from backend.schemas.chat import ChatMessage, ChatRequest
@@ -113,7 +112,7 @@ def test_build_ollama_payload_with_send_email_and_fetch_url():
     """Verifies that build_ollama_payload formats system prompt with exfiltration tools correctly.
 
     High level role: Validates formatting of system prompt containing exfiltration tools.
-    Description: Simulates a red-teaming scenario where send_email and fetch_url tools
+    Description: Simulates a scenario where send_email and fetch_url tools
     are registered, and asserts that they are cleanly appended to the system message.
     How it works:
     - Constructs ChatRequest with fetch_url and send_email tools.

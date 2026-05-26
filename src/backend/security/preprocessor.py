@@ -5,6 +5,7 @@ High level role: Orchestrates the security pipeline:
 1. Filters: Normalization, Base64 decoding, Fuzzy matching.
 2. Classification: Uses pre-trained Bayesian models to calculate risk.
 """
+
 import base64
 import os
 import re
@@ -37,13 +38,14 @@ class SecurityPreprocessor:  # pylint: disable=too-few-public-methods
         Returns:
             float: Risk probability (0.0 to 1.0).
         """
+        if not text:
+            return 0.0
+
+        cleaned_text = self._apply_filters(text)
+
         if not self._model or not self._vectorizer:
             return 0.0
 
-        # 1. Apply Filters
-        cleaned_text = self._apply_filters(text)
-
-        # 2. Vectorize and Predict
         vectorized = self._vectorizer.transform([cleaned_text])
         return float(self._model.predict_proba(vectorized)[0][1])
 
@@ -61,13 +63,13 @@ class SecurityPreprocessor:  # pylint: disable=too-few-public-methods
     def _normalize(self, text: str) -> str:
         """Normalizes whitespace and reconstructs spaced-out obfuscation."""
         # Standardize whitespace
-        text = re.sub(r'\s+', ' ', text).strip()
+        text = re.sub(r"\s+", " ", text).strip()
 
         # Reconstruct spaced-out words (e.g., 'm a l w a r e')
         text = self._reconstruct_spaced_text(text)
 
         # Standard character repetition cleanup
-        text = re.sub(r'(.)\1{3,}', r'\1', text)
+        text = re.sub(r"(.)\1{3,}", r"\1", text)
 
         return text
 
@@ -94,22 +96,24 @@ class SecurityPreprocessor:  # pylint: disable=too-few-public-methods
             >>> _reconstruct_spaced_text("I am a lion")
             "I am a lion"
         """
+
         def de_space_match(match):
             return match.group(0).replace(" ", "")
 
         # Regex: finds 3 or more single-character words separated by spaces
-        return re.sub(r'(?i)\b\w(?:\s\w){2,}\b', de_space_match, text)
+        return re.sub(r"(?i)\b\w(?:\s\w){2,}\b", de_space_match, text)
 
     def _decode_base64(self, text: str) -> str:
         """Attempts to find and decode Base64 strings."""
+
         def b64_repl(match):
             try:
-                decoded = base64.b64decode(match.group(0)).decode('utf-8', errors='ignore')
+                decoded = base64.b64decode(match.group(0)).decode("utf-8", errors="ignore")
                 return f" {decoded} " if len(decoded) > 5 else match.group(0)
             except Exception:  # pylint: disable=broad-exception-caught
                 return match.group(0)
 
-        return re.sub(r'[A-Za-z0-9+/]{8,}={0,2}', b64_repl, text)
+        return re.sub(r"[A-Za-z0-9+/]{8,}={0,2}", b64_repl, text)
 
     def _fix_typoglycemia(self, text: str) -> str:
         """Maps scrambled words back using RapidFuzz."""

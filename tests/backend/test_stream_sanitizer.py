@@ -70,3 +70,4 @@ async def test_clean_chunks_stream():
     assert "Hello world" in content
     assert "get_env" not in content
     assert assistant_msg["content"] == "Hello world"
+

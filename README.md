@@ -13,6 +13,9 @@ https://www.youtube.com/watch?v=72e_0WxaQl0
 
 ![Prompt Injection vs Jailbreaking](./docs/prompt-injection-vs-jailbreaking.png)
 
+See https://github.com/elder-plinius/L1B3RT4S/ for more
+creative prompt injection examples.
+
 ## Setup
 
 Local setup for testing LLM agent security with Ollama.
