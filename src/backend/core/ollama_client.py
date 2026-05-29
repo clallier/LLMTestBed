@@ -62,6 +62,13 @@ class OllamaClient:
                 f"{self.base_url}/api/chat",
                 json=payload,
             )
+            if response.status_code >= 400:
+                error_msg = await self._handle_status_error(response)
+                raise httpx.HTTPStatusError(
+                    f"Ollama API Error ({response.status_code}): {error_msg}",
+                    request=response.request,
+                    response=response,
+                )
             response.raise_for_status()
             return response.json()
 
@@ -87,6 +94,10 @@ class OllamaClient:
                     f"{self.base_url}/api/chat",
                     json=payload,
                 ) as response:
+                    if response.status_code >= 400:
+                        error_msg = await self._handle_status_error(response)
+                        yield f'{{"error": "Ollama API Error ({response.status_code}): {error_msg}"}}\n'
+                        return
                     response.raise_for_status()
                     async for line in response.aiter_lines():
                         if line:
@@ -117,6 +128,26 @@ class OllamaClient:
             )
             response.raise_for_status()
             return response.json()
+
+    # ==========================================
+    # Private Internal Helpers
+    # ==========================================
+
+    async def _handle_status_error(self, response: httpx.Response) -> str:
+        """Handles HTTP response errors by logging and formatting the error body.
+
+        High level role: Logs and parses error payloads from HTTP failures.
+
+        Args:
+            response (httpx.Response): The failed HTTP response object.
+
+        Returns:
+            str: Decoded string error message from the response body.
+        """
+        body = await response.aread()
+        decoded_body = body.decode(errors="replace")
+        logger.error("Ollama API Error (%d): %s", response.status_code, decoded_body)
+        return decoded_body
 
 
 # Factory pattern / IoC instantiation to load mock E2E client during testing

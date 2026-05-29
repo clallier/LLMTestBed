@@ -1,0 +1,13 @@
+services:
+  # compose setup: both in a single service for easier dev and testing
+  testbed:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+      - "8501:8501"
+    volumes:
+      - ./src:/app/src
+    environment:
+      - PORT=8000
